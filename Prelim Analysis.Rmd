@@ -7,6 +7,8 @@ output: html_document
 library(tidyverse)
 library(edgeR)
 library(limma)
+library(ggplot2)
+library(dplyr)
 ```
 
 #Host expression
@@ -26,17 +28,12 @@ host_filtered <- host_DGE[filt, , keep.lib.sizes = F]
 
 host_filtered <- calcNormFactors(host_filtered)
 
-host_v <- voom(host_filtered, design = model.matrix(~Strain, data = host_filtered$samples), plot = T)
+host_v <- voom(host_filtered, design = model.matrix(~Strain, data = host_filtered$samples), plot = F)
 ```
 
 MDS to check overall expression differences
 ```{r}
 plotMDS(host_v, labels = host_v$targets$FileName %>% str_remove("Host\\."), col = factor( host_v$targets$FileName %>% str_replace("Host\\.(.*?)\\..*", "\\1")) %>% as.integer())
-```
-
-```{r}
-host_fit <- lmFit(host_v, design = model.matrix(~ Strain, data = host_filtered$samples)) %>% 
-  eBayes()
 ```
 
 Fit expression model and check stats
@@ -54,6 +51,7 @@ decideTests(host_fit)
 decideTests(host_fit)[,-1] %>% 
   vennDiagram(include=c("up","down"))
 ```
+
 Plotting 
 ```{r}
 plot_host_gene <- function(gene) {
