@@ -1,0 +1,73 @@
+---
+title: "Preliminary Analysis"
+output: html_document
+---
+
+```{r setup, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(edgeR)
+library(limma)
+```
+
+#Host expression
+##Loading data
+
+Read in the host count matrix and convert to log2cpm
+``` {r host-data, warning=F}
+host_counts <- read_tsv("data/MATRIX_Counts-FINAL-Host.txt")
+host_samples <- read_tsv("data/SampleInfo_Host-STAR.txt")
+annotations <- read_tsv("data/Host-Gene-Annotation.txt")
+
+host_DGE <- DGEList(host_counts[,-1], genes = host_counts[,1]%>% bind_cols(annotations), samples = host_samples )
+
+filt <- filterByExpr(host_DGE, design = model.matrix(~Strain, data = host_DGE$samples), min.count = 40)
+
+host_filtered <- host_DGE[filt, , keep.lib.sizes = F]
+
+host_filtered <- calcNormFactors(host_filtered)
+
+host_v <- voom(host_filtered, design = model.matrix(~Strain, data = host_filtered$samples), plot = T)
+```
+
+MDS to check overall expression differences
+```{r}
+plotMDS(host_v, labels = host_v$targets$FileName %>% str_remove("Host\\."), col = factor( host_v$targets$FileName %>% str_replace("Host\\.(.*?)\\..*", "\\1")) %>% as.integer())
+```
+
+```{r}
+host_fit <- lmFit(host_v, design = model.matrix(~ Strain, data = host_filtered$samples)) %>% 
+  eBayes()
+```
+
+Fit expression model and check stats
+```{r}
+host_fit <- lmFit(host_v, design = model.matrix(~ Strain, data = host_filtered$samples)) %>% 
+  eBayes()
+
+#view fit stats
+topTable(host_fit)
+
+#call genes as DE for different coefficients
+decideTests(host_fit)
+
+#recreate venn diagram from prior work
+decideTests(host_fit)[,-1] %>% 
+  vennDiagram(include=c("up","down"))
+```
+
+Plotting 
+```{r}
+plot_host_gene <- function(gene) {
+  expn <- host_v$E[host_v$genes$EntrezGeneID == gene, ]
+  host_v$targets %>% 
+    mutate(expn = expn) %>% 
+    ggplot(aes(x=Strain, y = expn, colour = CellType)) + 
+    geom_point(position = position_jitter(width = 0.2)) +
+    stat_summary(colour = "black") +
+    ggtitle(gene) +
+    theme(legend.position = "none")
+}
+```
+
+
+
