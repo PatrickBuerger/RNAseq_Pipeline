@@ -75,3 +75,4 @@ plot_host_gene <- function(gene) {
 * Annotate with GO categories for functional analysis
 
 * Do all the above with symbiont
+* Symbiont/host interactions
