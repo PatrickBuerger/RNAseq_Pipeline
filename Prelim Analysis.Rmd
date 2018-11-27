@@ -76,3 +76,4 @@ plot_host_gene <- function(gene) {
 * Cluster expression and plot cluster patterns
 
 * Do all the above with symbiont
+* Symbiont/host interactions
