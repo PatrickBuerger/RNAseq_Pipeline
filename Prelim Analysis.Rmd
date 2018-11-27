@@ -54,7 +54,6 @@ decideTests(host_fit)
 decideTests(host_fit)[,-1] %>% 
   vennDiagram(include=c("up","down"))
 ```
-
 Plotting 
 ```{r}
 plot_host_gene <- function(gene) {
@@ -69,5 +68,10 @@ plot_host_gene <- function(gene) {
 }
 ```
 
+##Next steps
 
+* Summarise to gene level counts and redo DE analysis
+* Investigate DEXSeq for alternate exon usage
+* Annotate with GO categories for functional analysis
 
+* Do all the above with symbiont
