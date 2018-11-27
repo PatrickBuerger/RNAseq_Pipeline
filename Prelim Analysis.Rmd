@@ -71,6 +71,7 @@ plot_host_gene <- function(gene) {
 * Summarise to gene level counts and redo DE analysis
 * Investigate DEXSeq for alternate exon usage
 * Annotate with GO categories for functional analysis
+* Cluster expression and plot cluster patterns
 
 * Do all the above with symbiont
 * Symbiont/host interactions
