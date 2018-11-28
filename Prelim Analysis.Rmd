@@ -89,7 +89,12 @@ plot_host_gene <- function(gene) {
 ## Heatmap of most significant genes across samples
 The code below is a bit messy, sorry, I could not clean it up later. If you have a shortcut how to do the same, that would be great of course.. many thanks.
 Sometimes the error comes up when running the heatmap and it fails to produce the graph (did not google it yet, will do tomorrow). But the heatmap usually works..:
+
 Error in (function (filename = "Rplot%03d.png", width = 480, height = 480, : unable to start png() device
+
+Oh, I think, I just realised that the heatmap is not on the logcounts, but looks like absolute values. I still need to fix that..
+
+It may be nice to order them according to their average counts from high to low, so we would get a top block of all expressed genes for WT and a bottom block for all expressed genes for the SS strains. Will have another look into it.
 ```{r}
 # Heatmap of most significant genes across samples
 # Colour definitions
@@ -118,9 +123,12 @@ highly_signf_lcpm2 <- sapply(highly_signf_lcpm, as.numeric)
 dim(highly_signf_lcpm2)
 
 library(gplots)
+
 # make heatmap
 heatmap.2(
   highly_signf_lcpm2,
+  #Rowv = FALSE,
+  Colv = FALSE,
   col = rev(morecols(50)),
   trace = "none",
   main = "Top 500 most significant genes across samples",
