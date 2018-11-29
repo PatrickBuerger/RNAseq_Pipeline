@@ -53,6 +53,10 @@ decideTests(host_fit)
 #recreate venn diagram from prior work
 decideTests(host_fit)[,-1] %>% 
   vennDiagram(include=c("up","down"))
+
+#filter based on gene annotations
+topTable(host_fit, number = Inf, p.value = 0.05) %>% 
+  filter(EntrezGeneID_0 %>% str_detect("[H|h]eat"))
 ```
 Plotting 
 ```{r}
