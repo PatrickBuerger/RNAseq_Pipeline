@@ -7,6 +7,8 @@ output: html_document
 library(tidyverse)
 library(edgeR)
 library(limma)
+library(ggplot2)
+library(dplyr)
 ```
 
 #Host expression
@@ -26,17 +28,12 @@ host_filtered <- host_DGE[filt, , keep.lib.sizes = F]
 
 host_filtered <- calcNormFactors(host_filtered)
 
-host_v <- voom(host_filtered, design = model.matrix(~Strain, data = host_filtered$samples), plot = T)
+host_v <- voom(host_filtered, design = model.matrix(~Strain, data = host_filtered$samples), plot = F)
 ```
 
 MDS to check overall expression differences
 ```{r}
 plotMDS(host_v, labels = host_v$targets$FileName %>% str_remove("Host\\."), col = factor( host_v$targets$FileName %>% str_replace("Host\\.(.*?)\\..*", "\\1")) %>% as.integer())
-```
-
-```{r}
-host_fit <- lmFit(host_v, design = model.matrix(~ Strain, data = host_filtered$samples)) %>% 
-  eBayes()
 ```
 
 Fit expression model and check stats
@@ -46,6 +43,8 @@ host_fit <- lmFit(host_v, design = model.matrix(~ Strain, data = host_filtered$s
 
 #view fit stats
 topTable(host_fit)
+# export toptable 
+# topTable(host_fit, n=Inf) %>% write.table(, file="host_fit_table.csv", sep="\t")
 
 #call genes as DE for different coefficients
 decideTests(host_fit)
@@ -58,6 +57,7 @@ decideTests(host_fit)[,-1] %>%
 topTable(host_fit, number = Inf, p.value = 0.05) %>% 
   filter(EntrezGeneID_0 %>% str_detect("[H|h]eat"))
 ```
+
 Plotting 
 ```{r}
 plot_host_gene <- function(gene) {
@@ -81,3 +81,70 @@ plot_host_gene <- function(gene) {
 
 * Do all the above with symbiont
 * Symbiont/host interactions
+* WT does produce a lot of ROS... SS dont procude ROS. What can we find in the data to support this.. looking for SOD and other ROS scavengers. May be hypothesis testing by pulling out stress related genes? What was the code again for it please?
+* Looking at the heatmaps, there are signature blocks of genes that are either highly upregulated or downregul for the respective genes. What are these genes and what are their function?
+* We have SS8 strain (resistant) and WT10 strain (susceptible). Minimal evolution of three years between them, yet different thermal tolerance. We should be able to pinpoint the mutations (probably SNP analysis) and modultion of pathways that contribute to the differential resistance. We really have here for the frist time an apple VS apple comparison (no apple vs orange any more).
+* Should we have these things as a discussion in the Git section "issues"?
+
+
+
+
+# Construction site
+## Heatmap of most significant genes across samples
+The code below is a bit messy, sorry, I could not clean it up later. If you have a shortcut how to do the same, that would be great of course.. many thanks.
+Sometimes the error comes up when running the heatmap and it fails to produce the graph (did not google it yet, will do tomorrow). But the heatmap usually works..:
+
+Error in (function (filename = "Rplot%03d.png", width = 480, height = 480, : unable to start png() device
+
+Oh, I think, I just realised that the heatmap is not on the logcounts, but looks like absolute values. I still need to fix that..
+
+It may be nice to order them according to their average counts from high to low, so we would get a top block of all expressed genes for WT and a bottom block for all expressed genes for the SS strains. Will have another look into it.
+```{r}
+# Heatmap of most significant genes across samples
+# Colour definitions
+library(RColorBrewer)
+mypalette <- brewer.pal(11, "RdYlBu")
+morecols <- colorRampPalette(mypalette)
+col.cell <- c("purple", "orange")[host_samples$CellType]
+column_labels <- paste(host_samples$CellType, host_samples$Strain, sep = ".")
+column_labels <- paste(host_samples$SampleName)
+
+# Extract top 500 most significant genes
+# Extract labels to match them later to table with logcounts
+top500signf <- topTable(host_fit, n=500)
+select_topsignf <- as.character(top500signf$EntrezGeneID)
+head(select_topsignf)
+
+## Subsetting table according to the new labels
+# got some error messages that matrix is required, fixed like this
+host_counts2 <- as.matrix(host_counts, mode='any', row.names=1)
+# had an error that first column should have been labels, fixed like this
+host_counts3 <- data.frame(host_counts2[,-1], row.names=host_counts2[,1])
+# subsetting of matri worked
+highly_signf_lcpm <- host_counts3[select_topsignf, ]
+# had to convert matrix into numeric matrix
+highly_signf_lcpm2 <- sapply(highly_signf_lcpm, as.numeric)
+dim(highly_signf_lcpm2)
+
+library(gplots)
+
+# make heatmap
+heatmap.2(
+  highly_signf_lcpm2,
+  #Rowv = FALSE,
+  Colv = FALSE,
+  col = rev(morecols(50)),
+  trace = "none",
+  main = "Top 500 most significant genes across samples",
+  ColSideColors = col.cell,
+  scale = "row",
+  labCol = column_labels,
+  #fix stuff that falls off the image with the following line
+  margins = c(10,5),
+  # remove junk on side
+  labRow = ""
+)
+
+```
+
+
