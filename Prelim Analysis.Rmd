@@ -129,7 +129,7 @@ dim(fit.cont)
 summa.fit <- decideTests(fit.cont)
 summary(summa.fit)
 SelectedGenesSignf <- topTable(fit.cont,coef="SS8.vs.WT10", number = Inf, p.value = 0.05, sort.by="logFC") %>% 
-  filter(EntrezGeneID_0 %>% str_detect("[H|h]eat|[G|g]lutathione"))
+  filter(EntrezGeneID_0 %>% str_detect("[G|g]lutathione"))
 select_topsignf <- as.character(SelectedGenesSignf$EntrezGeneID)
 
 # C)
