@@ -28,7 +28,7 @@ host_filtered <- host_DGE[filt, , keep.lib.sizes = F]
 
 host_filtered <- calcNormFactors(host_filtered)
 
-host_v <- voom(host_filtered, design = model.matrix(~Strain, data = host_filtered$samples), plot = F)
+host_v <- voom(host_filtered, design = model.matrix(~Strain, data = host_filtered$samples), plot = T)
 ```
 
 MDS to check overall expression differences
@@ -55,7 +55,7 @@ decideTests(host_fit)[,-1] %>%
 
 #filter based on gene annotations
 topTable(host_fit, number = Inf, p.value = 0.05) %>% 
-  filter(EntrezGeneID_0 %>% str_detect("[H|h]eat"))
+  filter(EntrezGeneID_0 %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase"))
 ```
 
 Plotting 
@@ -109,22 +109,49 @@ col.cell <- c("purple", "orange")[host_samples$CellType]
 column_labels <- paste(host_samples$CellType, host_samples$Strain, sep = ".")
 column_labels <- paste(host_samples$SampleName)
 
+# A)
 # Extract top 500 most significant genes
 # Extract labels to match them later to table with logcounts
 top500signf <- topTable(host_fit, n=500)
 select_topsignf <- as.character(top500signf$EntrezGeneID)
 head(select_topsignf)
 
+# B) 
+# Extract genes of interest that are significantly different between SS8 and WT10, sort according to logvalues (NOT WORKING)
+design <- model.matrix(~Strain, data = host_filtered$samples)
+colnames(design) 
+cont.matrix <- makeContrasts(SS8.vs.WT10 = (Intercept) - StrainStrain8, levels=design)
+cont.matrix
+names(host_fit)
+fit.cont <- contrasts.fit(host_fit, cont.matrix)
+fit.cont <- eBayes(fit.cont)
+dim(fit.cont)
+summa.fit <- decideTests(fit.cont)
+summary(summa.fit)
+SelectedGenesSignf <- topTable(fit.cont,coef="SS8.vs.WT10", number = Inf, p.value = 0.05, sort.by="logFC") %>% 
+  filter(EntrezGeneID_0 %>% str_detect("[H|h]eat|[G|g]lutathione"))
+select_topsignf <- as.character(SelectedGenesSignf$EntrezGeneID)
+
+# C)
+# Extract genes of interest across all genes
+SelectedGenesSignf <- topTable(host_fit, number = Inf, p.value = 0.05) %>% 
+  filter(EntrezGeneID_0 %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase"))
+
+select_topsignf <- as.character(SelectedGenesSignf$EntrezGeneID)
+head(select_topsignf)
+###
+
 ## Subsetting table according to the new labels
 # got some error messages that matrix is required, fixed like this
 host_counts2 <- as.matrix(host_counts, mode='any', row.names=1)
 # had an error that first column should have been labels, fixed like this
 host_counts3 <- data.frame(host_counts2[,-1], row.names=host_counts2[,1])
-# subsetting of matri worked
+# subsetting of matrix worked
 highly_signf_lcpm <- host_counts3[select_topsignf, ]
 # had to convert matrix into numeric matrix
 highly_signf_lcpm2 <- sapply(highly_signf_lcpm, as.numeric)
 dim(highly_signf_lcpm2)
+
 
 library(gplots)
 
@@ -135,14 +162,14 @@ heatmap.2(
   Colv = FALSE,
   col = rev(morecols(50)),
   trace = "none",
-  main = "Top 500 most significant genes across samples",
+  main = "Selected genes",
   ColSideColors = col.cell,
   scale = "row",
   labCol = column_labels,
   #fix stuff that falls off the image with the following line
-  margins = c(10,5),
+  margins = c(10,5)
   # remove junk on side
-  labRow = ""
+  # labRow = ""
 )
 
 ```
