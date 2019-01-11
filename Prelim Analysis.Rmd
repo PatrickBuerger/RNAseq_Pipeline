@@ -3,19 +3,21 @@ title: "Preliminary Analysis"
 output: html_document
 ---
 
-```{r setup, warning=FALSE, message=FALSE}
+```{r setup, warning=FALSE, message=FALSE, error=FALSE}
 library(tidyverse)
 library(edgeR)
 library(limma)
 library(ggplot2)
 library(dplyr)
 ```
+***
+<br><br>
 
-#Host expression
-##Loading data
+# Host expression
+## Loading data
 
 Read in the host count matrix and convert to log2cpm
-``` {r host-data, warning=F, message=F}
+``` {r host-data, warning=F}
 host_counts <- read_tsv("data/MATRIX_Counts-FINAL-Host.txt")
 host_samples <- read_tsv("data/SampleInfo_Host-STAR.txt")
 annotations <- read_tsv("data/Host-Gene-Annotation.txt")
@@ -37,7 +39,7 @@ plotMDS(host_v, labels = host_v$targets$FileName %>% str_remove("Host\\."), col 
 ```
 
 Fit expression model and check stats
-```{r}
+```{r, }
 host_fit <- lmFit(host_v, design = model.matrix(~ Strain, data = host_filtered$samples)) %>% 
   eBayes()
 
@@ -52,11 +54,16 @@ decideTests(host_fit)
 #recreate venn diagram from prior work
 decideTests(host_fit)[,-1] %>% 
   vennDiagram(include=c("up","down"))
-
+```
+```{r, eval=FALSE}
 #filter based on gene annotations
 topTable(host_fit, number = Inf, p.value = 0.05) %>% 
   filter(EntrezGeneID_0 %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase"))
 ```
+
+
+
+
 
 Plotting 
 ```{r}
@@ -70,9 +77,76 @@ plot_host_gene <- function(gene) {
     ggtitle(gene) +
     theme(legend.position = "none")
 }
+
+```
+***
+<br><br>
+
+# Symbiont expression
+## Loading data
+
+Read in the symbiont count matrix and convert to log2cpm
+``` {r symbiont-data, warning=F}
+symbiont_counts <- read_tsv("data/MATRIX_Counts-FINAL-Symbiont.txt")
+symbiont_samples <- read_tsv("data/SampleInfo_Symbiont-STAR.txt")
+#annotations <- read_tsv("data/Symbiont-Gene-Annotation.txt")
+
+symbiont_DGE <- DGEList(symbiont_counts[,-1], genes = symbiont_counts[,1], samples = symbiont_samples )
+
+filt <- filterByExpr(symbiont_DGE, design = model.matrix(~Strain, data = symbiont_DGE$samples), min.count = 40)
+
+symbiont_filtered <- symbiont_DGE[filt, , keep.lib.sizes = F]
+
+symbiont_filtered <- calcNormFactors(symbiont_filtered)
+
+symbiont_v <- voom(symbiont_filtered, design = model.matrix(~Strain, data = symbiont_filtered$samples), plot = T)
 ```
 
-##Next steps
+MDS to check overall expression differences
+```{r}
+plotMDS(symbiont_v, labels = symbiont_v$targets$FileName %>% str_remove("Symbiont\\."), col = factor( symbiont_v$targets$FileName %>% str_replace("Symbiont\\.(.*?)\\..*", "\\1")) %>% as.integer())
+```
+
+Fit expression model and check stats
+```{r}
+symbiont_fit <- lmFit(symbiont_v, design = model.matrix(~ Strain, data = symbiont_filtered$samples)) %>% 
+  eBayes()
+
+#view fit stats
+topTable(symbiont_fit)
+# export toptable 
+# topTable(symbiont_fit, n=Inf) %>% write.table(, file="symbiont_fit_table.csv", sep="\t")
+
+#call genes as DE for different coefficients
+decideTests(symbiont_fit)
+
+#recreate venn diagram from prior work
+decideTests(symbiont_fit)[,-1] %>% 
+  vennDiagram(include=c("up","down"))
+```
+```{r, eval=FALSE}
+#filter based on gene annotations
+topTable(symbiont_fit, number = Inf, p.value = 0.05) %>% 
+  filter(EntrezGeneID %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase"))
+```
+
+Plotting 
+```{r}
+plot_symbiont_gene <- function(gene) {
+  expn <- symbiont_v$E[symbiont_v$genes$EntrezGeneID == gene, ]
+  symbiont_v$targets %>% 
+    mutate(expn = expn) %>% 
+    ggplot(aes(x=Strain, y = expn, colour = CellType)) + 
+    geom_point(position = position_jitter(width = 0.2)) +
+    stat_summary(colour = "black") +
+    ggtitle(gene) +
+    theme(legend.position = "none")
+}
+```
+***
+<br><br>
+
+## Next steps
 
 * Summarise to gene level counts and redo DE analysis
 * Investigate DEXSeq for alternate exon usage
@@ -86,6 +160,8 @@ plot_host_gene <- function(gene) {
 * We have SS8 strain (resistant) and WT10 strain (susceptible). Minimal evolution of three years between them, yet different thermal tolerance. We should be able to pinpoint the mutations (probably SNP analysis) and modultion of pathways that contribute to the differential resistance. We really have here for the frist time an apple VS apple comparison (no apple vs orange any more).
 * Should we have these things as a discussion in the Git section "issues"?
 
+***
+<br><br>
 
 
 
@@ -99,6 +175,10 @@ Error in (function (filename = "Rplot%03d.png", width = 480, height = 480, : una
 Oh, I think, I just realised that the heatmap is not on the logcounts, but looks like absolute values. I still need to fix that..
 
 It may be nice to order them according to their average counts from high to low, so we would get a top block of all expressed genes for WT and a bottom block for all expressed genes for the SS strains. Will have another look into it.
+***
+<br><br>
+
+Heatmap of most significant genes across samples
 ```{r}
 # Heatmap of most significant genes across samples
 # Colour definitions
