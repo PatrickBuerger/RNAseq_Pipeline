@@ -15,7 +15,7 @@ library(dplyr)
 ##Loading data
 
 Read in the host count matrix and convert to log2cpm
-``` {r host-data, warning=F}
+``` {r host-data, warning=F, message=F}
 host_counts <- read_tsv("data/MATRIX_Counts-FINAL-Host.txt")
 host_samples <- read_tsv("data/SampleInfo_Host-STAR.txt")
 annotations <- read_tsv("data/Host-Gene-Annotation.txt")
