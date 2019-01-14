@@ -13,7 +13,16 @@ library(dplyr)
 ***
 <br><br>
 
-# Host expression
+## __Content__
+### 1 Host expression
+### 2 Symbiont expression
+### 3 Next steps
+### 4 Construction site (random stuff)
+***
+<br><br>
+
+
+# __1 Host expression__
 ## Loading data
 
 Read in the host count matrix and convert to log2cpm
@@ -82,7 +91,7 @@ plot_host_gene <- function(gene) {
 ***
 <br><br>
 
-# Symbiont expression
+# __2 Symbiont expression__
 ## Loading data
 
 Read in the symbiont count matrix and convert to log2cpm
@@ -146,18 +155,17 @@ plot_symbiont_gene <- function(gene) {
 ***
 <br><br>
 
-## Next steps
+# __3 Next steps__
 
 * Summarise to gene level counts and redo DE analysis
 * Investigate DEXSeq for alternate exon usage
 * Annotate with GO categories for functional analysis
 * Cluster expression and plot cluster patterns
-
 * Do all the above with symbiont
 * Symbiont/host interactions
-* WT does produce a lot of ROS... SS dont procude ROS. What can we find in the data to support this.. looking for SOD and other ROS scavengers. May be hypothesis testing by pulling out stress related genes? What was the code again for it please?
+* WT does produce a lot of ROS... SS dont produce ROS. What can we find in the data to support this.. looking for SOD and other ROS scavengers. May be hypothesis testing by pulling out stress related genes? What was the code again for it please?
 * Looking at the heatmaps, there are signature blocks of genes that are either highly upregulated or downregul for the respective genes. What are these genes and what are their function?
-* We have SS8 strain (resistant) and WT10 strain (susceptible). Minimal evolution of three years between them, yet different thermal tolerance. We should be able to pinpoint the mutations (probably SNP analysis) and modultion of pathways that contribute to the differential resistance. We really have here for the frist time an apple VS apple comparison (no apple vs orange any more).
+* We have SS8 strain (resistant) and WT10 strain (susceptible). Minimal evolution of three years between them, yet different thermal tolerance. We should be able to pinpoint the mutations (probably SNP analysis) and modulation of pathways that contribute to the differential resistance. We really have here for the first time an apple VS apple comparison (no apple vs orange any more).
 * Should we have these things as a discussion in the Git section "issues"?
 
 ***
@@ -165,7 +173,7 @@ plot_symbiont_gene <- function(gene) {
 
 
 
-# Construction site
+# __4 Construction site__
 ## Heatmap of most significant genes across samples
 The code below is a bit messy, sorry, I could not clean it up later. If you have a shortcut how to do the same, that would be great of course.. many thanks.
 Sometimes the error comes up when running the heatmap and it fails to produce the graph (did not google it yet, will do tomorrow). But the heatmap usually works..:
@@ -178,7 +186,7 @@ It may be nice to order them according to their average counts from high to low,
 ***
 <br><br>
 
-Heatmap of most significant genes across samples
+Heatmap of most significant genes across samples (should be discriminant analysis, what genes distinguish WT10 from SS8?, at the moment it is across all samples).
 ```{r}
 # Heatmap of most significant genes across samples
 # Colour definitions
