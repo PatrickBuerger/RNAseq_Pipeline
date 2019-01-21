@@ -101,7 +101,7 @@ gene_host_fit <- lmFit(gene_host_v, design = model.matrix(~ Strain, data = gene_
 topTable(gene_host_fit)
 
 #export toptable 
-topTable(gene_host_fit, n=Inf) %>% write.table(, file="gene_host_fit_table.csv", sep="\t")
+topTable(gene_host_fit, n=Inf) %>% write.table(, file="gene_host_fit_table.csv", sep="\t", quote=F)
 
 #call genes as DE for different coefficients
 #Limiting to a 2X change or greater (1 log2 fold change)
@@ -219,7 +219,7 @@ Read in the symbiont count matrix and convert to log2cpm
 symbiont_counts <- read_tsv("data/MATRIX_Counts-FINAL-Symbiont.txt")
 symbiont_samples <- read_tsv("data/SampleInfo_Symbiont-STAR.txt")
 symbiont_annotations <- read_tsv("data/Symbiont_diamond_annot_20190117_1327.txt")
-#symbiont_annotations <- read_tsv("data/Symbiont-Gene-Annotation.txt")
+#symbiont_exon_annnotations <- read_tsv("data/Symbiont-Gene-Annotation.txt")
 
 # Exons
 symbiont_DGE <- DGEList(symbiont_counts[,-1], genes = symbiont_counts[,1], samples = symbiont_samples )
@@ -228,8 +228,8 @@ filt <- filterByExpr(symbiont_DGE, design = model.matrix(~Strain, data = symbion
 
 symbiont_filtered <- symbiont_DGE[filt, , keep.lib.sizes = F]
 
-symbiont_filtered <- calcNormFactors(symbiont_filtered)
-
+symbiont_filtered <- calcNormFactors(symbiont_filtered) %>% 
+  
 symbiont_v <- voom(symbiont_filtered, design = model.matrix(~Strain, data = symbiont_filtered$samples), plot = F)
 ```
 
@@ -286,7 +286,7 @@ gene_symbiont_fit <- lmFit(gene_symbiont_v, design = model.matrix(~ Strain, data
 topTable(gene_symbiont_fit)
 
 #export toptable 
-topTable(gene_symbiont_fit, n=Inf) %>% write.table(, file="gene_symbiont_fit_table.csv", sep="\t")
+topTable(gene_symbiont_fit, n=Inf) %>% write.table(, file="gene_symbiont_fit_table.csv", sep="\t", quote=F)
 
 #call genes as DE for different coefficients
 #Limiting to a 2X change or greater (1 log2 fold change)
@@ -323,9 +323,9 @@ symbiont_strain_5_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, Strai
 
 symbiont_strain_8_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == 1)
 
-symbiont_strain_3_8_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 1) %>% write.table(, file="symbiont_strain_3_8_up.csv", sep="\t")
+symbiont_strain_3_8_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 1) %>% write.table(, file="symbiont_strain_3_8_up.csv", sep="\t", quote=F)
 
-symbiont_strain_8only_up <- filter(gene_symbiont_coef_sig, StrainStrain8 == 1) %>% write.table(, file="symbiont_strain_8only_up.csv", sep="\t")
+symbiont_strain_8only_up <- filter(gene_symbiont_coef_sig, StrainStrain8 == 1) %>% write.table(, file="symbiont_strain_8only_up.csv", sep="\t", quote=F)
 
 
 ```
@@ -398,6 +398,29 @@ layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 
 dev.off() 
 
+```
+
+GO-Stats in ErmineJ
+```{r}
+# write table for GO-stats
+
+# GeneExpressionProfiles-Symbiont.txt
+write.table(cbind(gene_symbiont_filtered$genes[,-2], gene_symbiont_filtered$counts), file="GeneExpressionProfiles-Symbiont.txt", row.names=F, sep="\t", quote=F)
+
+# GeneScores-Symbiont.txt 
+GeneScores_Symbiont <- topTable(gene_symbiont_fit, n=Inf) 
+write.table(cbind(GeneScores_Symbiont$gene,GeneScores_Symbiont$adj.P.Val), file="GeneScores-Symbiont.txt", sep="\t", row.names=F, quote=F, col.names =F)
+
+# GeneExpressionProfiles-Host.txt
+write.table(cbind(gene_host_filtered$genes[,-2], gene_host_filtered$counts), file="GeneExpressionProfiles-Host.txt", row.names=F, sep="\t", quote=F)
+
+# GeneScores-Host.txt 
+GeneScores_Host <- topTable(gene_host_fit, n=Inf) 
+write.table(cbind(GeneScores_Host$gene,GeneScores_Host$adj.P.Val), file="GeneScores-Host.txt", sep="\t", row.names=F, quote=F, col.names =F)
+
+# GeneAnnotations-Host.txt
+GeneScores_Symbiont <- topTable(gene_symbiont_fit, n=Inf) 
+write.table(cbind(GeneScores_Symbiont$gene,GeneScores_Symbiont$Annotation,), file="GeneScores-Symbiont.txt", sep="\t", row.names=F, quote=F, col.names =F)
 ```
 ***
 <br><br>
