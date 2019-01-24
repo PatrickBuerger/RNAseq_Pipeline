@@ -1,6 +1,6 @@
 ---
 title: "Preliminary Analysis"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, warning=FALSE, message=FALSE, error=FALSE}
@@ -10,7 +10,20 @@ library(limma)
 library(ggplot2)
 library(dplyr)
 library(gplots)
+#
+# For PDF export:
+# install.packages("devtools")
+library(devtools)
+# install_version("rmarkdown",version=1.8)
+
 ```
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+require(knitr)
+# Set so that long lines in R will be wrapped:
+opts_chunk$set(tidy.opts=list(width.cutoff=40),tidy=TRUE)
+```
+
 
 ***
 <br><br>
@@ -41,12 +54,14 @@ host_DGE <- DGEList(host_counts[,-1], genes = host_counts[,1]%>% bind_cols(host_
 
 filt <- filterByExpr(host_DGE, design = model.matrix(~Strain, data = host_DGE$samples), min.count = 40)
 
-host_filtered <- host_DGE[filt, , keep.lib.sizes = F]
+host_filtered1 <- host_DGE[filt, , keep.lib.sizes = F]
 
-host_filtered <- calcNormFactors(host_filtered)
+host_filtered2 <- calcNormFactors(host_filtered1)
 
-host_v <- voom(host_filtered, design = model.matrix(~Strain, data = host_filtered$samples), plot = F)
+# run limma voom
+host_v <- voom(host_filtered2, design = model.matrix(~Strain, data = host_filtered2$samples), plot = F)
 ```
+<br><br>
 
 ## Collate to gene level
 Might be better for some uses to look at whole gene level expression initally before drilling down to exon level data.
@@ -61,19 +76,47 @@ table((host_annotations[,1] == (gene_host_counts[,1])))
 # then bind host_annotations to gene list
 gene_host_DGE <- DGEList(gene_host_counts[,-1], genes = gene_host_counts[,1]%>% bind_cols(host_annotations[,-1]), samples = host_samples)
 
-# check that annotation table and gene_host_DGE match.. needs to be all TRUE events
+# check that annotation table and gene_host_DGE match.. needs to be all TRUE events. Two columns to match
 table((gene_host_DGE$genes == (host_annotations)))
 
 gene_host_filt <- filterByExpr(gene_host_DGE, design = model.matrix(~Strain, data = gene_host_DGE$samples), min.count = 40)
 
-gene_host_filtered <- gene_host_DGE[gene_host_filt, , keep.lib.sizes = F]
+gene_host_filtered1 <- gene_host_DGE[gene_host_filt, , keep.lib.sizes = F]
 
-gene_host_filtered <- calcNormFactors(gene_host_filtered)
+gene_host_filtered2 <- calcNormFactors(gene_host_filtered1)
+
+# Check filter cut off before and after
+par(mfrow=c(2,2))
+mean_log_cpm1 <- aveLogCPM(gene_host_DGE$counts)
+filter_threshold <- 0.5
+hist(mean_log_cpm1, breaks=200, ylim=c(0,2500)); abline(v=filter_threshold)
+qqnorm(mean_log_cpm1); abline(h=filter_threshold)
+#
+mean_log_cpm2 <- aveLogCPM(gene_host_filtered1$counts)
+filter_threshold <- 0.5
+hist(mean_log_cpm2, breaks=200, ylim=c(0,2500)); abline(v=filter_threshold)
+qqnorm(mean_log_cpm2); abline(h=filter_threshold)
+
+# Check normalised and unnormalised data
+par(mfrow=c(1,2))
+host_lcpm1 <- cpm(gene_host_filtered1, log=TRUE)
+boxplot(host_lcpm1, las=2, main="")
+title(main="A. Example: Unnormalised data",ylab="Log-cpm")
+#
+gene_host_filtered2$samples$norm.factors
+host_lcpm2 <- cpm(gene_host_filtered2, log=TRUE)
+boxplot(host_lcpm2, las=2, main="")
+title(main="B. Example: Normalised data",ylab="Log-cpm")
+
+dev.off() 
+
+
+
 
 # check that data is still all matching up
-table(host_samples$SampleName == colnames(gene_host_filtered))
+table(host_samples$SampleName == colnames(gene_host_filtered2))
 
-gene_host_v <- voom(gene_host_filtered, design = model.matrix(~Strain, data = gene_host_filtered$samples), plot = T)
+gene_host_v <- voom(gene_host_filtered2, design = model.matrix(~Strain, data = gene_host_filtered2$samples), plot = T)
 ```
 Fig. 1 Limma voom model.
 <br><br>
@@ -82,11 +125,13 @@ Fig. 1 Limma voom model.
 ```{r, fig.align='center'}
 #par(mar=c(5,6,3,1))
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
+par(mfrow=c(1,2))
 plotMDS(gene_host_v, main = "gene counts",labels = host_v$targets$FileName %>% str_remove("Host\\."), col = factor( host_v$targets$FileName %>% str_replace("Host\\.(.*?)\\..*", "\\1")) %>% as.integer())
-
+#
 plotMDS(host_v, main = "exon counts", labels = host_v$targets$FileName %>% str_remove("Host\\."), col = factor( host_v$targets$FileName %>% str_replace("Host\\.(.*?)\\..*", "\\1")) %>% as.integer())
 
-#dev.off() 
+dev.off() 
+
 
 ```
 Fig. 2 MDS plot. Left side - estimate according to whole gene counts. Right side - estimate according to exon expression.
@@ -94,14 +139,14 @@ Fig. 2 MDS plot. Left side - estimate according to whole gene counts. Right side
 
 ## Fit expression model and check stats
 ```{r, fig.align='center'}
-gene_host_fit <- lmFit(gene_host_v, design = model.matrix(~ Strain, data = gene_host_filtered$samples)) %>% 
+gene_host_fit <- lmFit(gene_host_v, design = model.matrix(~ Strain, data = gene_host_filtered2$samples)) %>% 
   eBayes()
+
+# Summary
+summary(decideTests(gene_host_fit))
 
 #view fit stats
 topTable(gene_host_fit)
-
-#export toptable 
-topTable(gene_host_fit, n=Inf) %>% write.table(, file="gene_host_fit_table.csv", sep="\t", quote=F)
 
 #call genes as DE for different coefficients
 #Limiting to a 2X change or greater (1 log2 fold change)
@@ -112,10 +157,16 @@ gene_host_coef_sig <- decideTests(gene_host_fit, lfc=1) %>% as.data.frame() %>% 
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 
 decideTests(gene_host_fit)[,-1] %>% 
-  vennDiagram(include=c("up","down"), main = "all genes")
+  vennDiagram(include=c("up","down"),
+            counts.col=c("brown3", "darkblue"),
+            circle.col = c("darkred", "blue", "green4"))
+title("Venndiagram host. SS strains vs Wild type [all genes]", line = 1)
 
 decideTests(gene_host_fit, lfc=1)[,-1] %>% 
-  vennDiagram(include=c("up","down"), main = "lfc > 1")
+  vennDiagram(include=c("up","down"),
+            counts.col=c("brown3", "darkblue"),
+            circle.col = c("darkred", "blue", "green4"))
+title("Venndiagram host. SS strains vs Wild type [lfc > 1]", line = 1)
 
 #dev.off() 
 ```
@@ -126,15 +177,70 @@ Fig. 3 Venndiagram showing genes that are significantly different expressed betw
 ## Exploratory analysis 1
 ### PLOTTING NEEDS MORE WORK 
 Filter genes from Venndiagram. Which are the genes that all selected strains have significantly expressed compared to the wild type?
-```{r}
-# Filter genes from Venndiagram. Which are the genes that all selected strains have significantly expressed compared to the wild type. 
-host_strains_all_up <- filter(gene_host_coef_sig, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 1)
 
-host_strain_3_up <- filter(gene_host_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 0)
+### DATA EXPORT
+Code silenced and hidden. See DGE table: host_DGE_expression_FULLlist.xlsx.
+```{r, eval=FALSE, echo=FALSE}
+#export toptable, list of all filtered genes and their expression. P-value indicates if significant DEG among samples.
+host_all_genes <- topTable(gene_host_fit, n=Inf)
+topTable(gene_host_fit, n=Inf) %>% write.table(, file="host_DGE_expression.csv", sep="\t", quote=F)
 
-host_strain_5_up <- filter(gene_host_coef_sig, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 0)
+# Filter genes from Venndiagram. Which are the genes that all selected strains have significantly expressed compared to the wild type - 2 fold expression difference! 
+host_strains_3_5_8_up <- filter(gene_host_coef_sig, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+host_strains_3_5_8_down <- filter(gene_host_coef_sig, StrainStrain3 == -1, StrainStrain5 == -1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+host_strain_3_up <- filter(gene_host_coef_sig, StrainStrain3 == 1)%>% .[order(.$Annotation),]
+host_strain_3_down <- filter(gene_host_coef_sig, StrainStrain3 == -1) %>% .[order(.$Annotation),]
+host_strain_3_unique_up <- filter(gene_host_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+host_strain_3_unique_down <- filter(gene_host_coef_sig, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+host_strain_5_up <- filter(gene_host_coef_sig, StrainStrain5 == 1) %>% .[order(.$Annotation),]
+host_strain_5_down <- filter(gene_host_coef_sig, StrainStrain5 == -1) %>% .[order(.$Annotation),]
+host_strain_5_unique_up <- filter(gene_host_coef_sig, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+host_strain_5_unique_down <- filter(gene_host_coef_sig, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+host_strain_8_up <- filter(gene_host_coef_sig, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+host_strain_8_down <- filter(gene_host_coef_sig, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+host_strain_8_unique_up <- filter(gene_host_coef_sig, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+host_strain_8_unique_down <- filter(gene_host_coef_sig, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+host_strain_3_8_up <- filter(gene_host_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+host_strain_3_8_down <- filter(gene_host_coef_sig, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+host_strain_3_5_up <- filter(gene_host_coef_sig, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),] 
+host_strain_3_5_down <- filter(gene_host_coef_sig, StrainStrain3 == -1, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+host_strain_5_8_up <- filter(gene_host_coef_sig, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+host_strain_5_8_down <- filter(gene_host_coef_sig, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
 
-host_strain_8_up <- filter(gene_host_coef_sig, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == 1)
+
+
+library(xlsx)
+#install.packages("xlsx")
+write.xlsx(host_strains_3_5_8_up, file="host_DGE_expression_list.xlsx", sheetName="host_strains_3_5_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(host_strains_3_5_8_down, file="host_DGE_expression_list.xlsx", sheetName="host_strains_3_5_8_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(host_strain_3_up, file="host_DGE_expression_list.xlsx", sheetName="host_strain_3_up", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_3_down, file="host_DGE_expression_list.xlsx", sheetName="host_strain_3_down", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_3_unique_up, file="host_DGE_expression_list.xlsx", sheetName="host_strain_3_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_3_unique_down, file="host_DGE_expression_list.xlsx", sheetName="host_strain_3_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(host_strain_5_up, file="host_DGE_expression_list.xlsx", sheetName="host_strain_5_up", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_5_down, file="host_DGE_expression_list.xlsx", sheetName="host_strain_5_down", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_5_unique_up, file="host_DGE_expression_list.xlsx", sheetName="host_strain_5_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_5_unique_down, file="host_DGE_expression_list.xlsx", sheetName="host_strain_5_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(host_strain_8_up, file="host_DGE_expression_list.xlsx", sheetName="host_strain_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_8_down, file="host_DGE_expression_list.xlsx", sheetName="host_strain_8_down", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_8_unique_up, file="host_DGE_expression_list.xlsx", sheetName="host_strain_8_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_8_unique_down, file="host_DGE_expression_list.xlsx", sheetName="host_strain_8_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(host_strain_3_8_up, file="host_DGE_expression_list.xlsx", sheetName="host_strain_3_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_3_8_down, file="host_DGE_expression_list.xlsx", sheetName="host_strain_3_8_down", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_3_5_up, file="host_DGE_expression_list.xlsx", sheetName="host_strain_3_5_up", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_3_5_down, file="host_DGE_expression_list.xlsx", sheetName="host_strain_3_5_down", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_5_8_up, file="host_DGE_expression_list.xlsx", sheetName="host_strain_5_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(host_strain_5_8_down, file="host_DGE_expression_list.xlsx", sheetName="host_strain_5_8_down", append=TRUE, row.names=FALSE)
 
 ```
 <br><br>
@@ -144,21 +250,22 @@ host_strain_8_up <- filter(gene_host_coef_sig, StrainStrain3 == 0, StrainStrain5
 Filter genes according to annotation. Which are heat stress related genes that are differentially expressed between the wild type and selected strains?
 ```{r}
 #filter based on gene host_annotations
-topTable(gene_host_fit, number = Inf, p.value = 0.05) %>% 
-  filter(Annotation %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase"))
+head(topTable(gene_host_fit, number = Inf, p.value = 0.05) %>% 
+  filter(Annotation %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase")))
 
 ```
 <br><br>
 
 
 
-## Plotting, plot by gene and by exon.
+## Plotting, by gene and by exon.
 ### ISSUE MARKED IN GITHUB - Gene expression does not seem to match with exon expression. Exon plots dont seem to make sense??
 ```{r, fig.align='center'}
+
 ## Plot by gene, according to annotation
 plot_host_gene <- function(gene) {
-  expn <- gene_host_v$E[gene_host_v$genes$Annotation == gene, ]
-  #expn <- gene_host_v$E[gene_host_v$genes$gene == gene, ]
+  #expn <- gene_host_v$E[gene_host_v$genes$Annotation == gene, ]
+  expn <- gene_host_v$E[gene_host_v$genes$gene == gene, ]
   gene_host_v$targets %>% 
     mutate(expn = expn) %>% 
     ggplot(aes(x=Strain, y = expn, colour = CellType)) + 
@@ -167,14 +274,19 @@ plot_host_gene <- function(gene) {
     ggtitle(gene) +
     theme(legend.position = "none")
 }
+
+#plot_host_gene("heat shock 70")
+#plot_host_gene("small heat shock")
+#plot_host_gene("Glutathione S-transferase 1")
+#plot_host_gene("molecular chaperone")
+
 # gene of choice
 #par(mar=c(5,6,3,1))
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
-plot_host_gene("heat shock 70")
-plot_host_gene("small heat shock")
-plot_host_gene("Glutathione S-transferase 1")
-plot_host_gene("molecular chaperone")
-
+plot_host_gene("aten_0.1.m1.446.m1")
+plot_host_gene("aten_0.1.m1.4452.m1")
+plot_host_gene("aten_0.1.m1.24908.m1")
+plot_host_gene("aten_0.1.m1.17022.m1")
 #dev.off() 
 # plot_host_gene("aten_0.1.m1.10016.m1")
 
@@ -198,9 +310,9 @@ plot_host_gene_by_exon <- function(gene) {
 #par(mar=c(5,6,3,1))
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 plot_host_gene_by_exon("aten_0.1.m1.446.m1")
-plot_host_gene_by_exon("aten_0.1.m1.4452.m1")
-plot_host_gene_by_exon("aten_0.1.m1.24908.m1")
-plot_host_gene_by_exon("aten_0.1.m1.17022.m1")
+#plot_host_gene_by_exon("aten_0.1.m1.4452.m1")
+#plot_host_gene_by_exon("aten_0.1.m1.24908.m1")
+#plot_host_gene_by_exon("aten_0.1.m1.17022.m1")
 
 #dev.off() 
 
@@ -228,10 +340,12 @@ filt <- filterByExpr(symbiont_DGE, design = model.matrix(~Strain, data = symbion
 
 symbiont_filtered <- symbiont_DGE[filt, , keep.lib.sizes = F]
 
-symbiont_filtered <- calcNormFactors(symbiont_filtered) %>% 
-  
+symbiont_filtered <- calcNormFactors(symbiont_filtered)
+
 symbiont_v <- voom(symbiont_filtered, design = model.matrix(~Strain, data = symbiont_filtered$samples), plot = F)
+
 ```
+<br><br>
 
 ## Collate to gene level
 Might be better for some uses to look at whole gene level expression initally before drilling down to exon level data.
@@ -246,19 +360,47 @@ table((symbiont_annotations[,1] == (gene_symbiont_counts[,1])))
 # then bind symbiont_annotations to gene list
 gene_symbiont_DGE <- DGEList(gene_symbiont_counts[,-1], genes = gene_symbiont_counts[,1]%>% bind_cols(symbiont_annotations[,-1]), samples = symbiont_samples)
 
-# check that annotation table and gene_symbiont_DGE match.. needs to be all TRUE events
+# check that annotation table and gene_symbiont_DGE match.. needs to be all TRUE events, two columns to match
 table((gene_symbiont_DGE$genes == (symbiont_annotations)))
 
 gene_symbiont_filt <- filterByExpr(gene_symbiont_DGE, design = model.matrix(~Strain, data = gene_symbiont_DGE$samples), min.count = 40)
 
-gene_symbiont_filtered <- gene_symbiont_DGE[gene_symbiont_filt, , keep.lib.sizes = F]
+gene_symbiont_filtered1 <- gene_symbiont_DGE[gene_symbiont_filt, , keep.lib.sizes = F]
 
-gene_symbiont_filtered <- calcNormFactors(gene_symbiont_filtered)
+gene_symbiont_filtered2 <- calcNormFactors(gene_symbiont_filtered1)
+
+
+# Check filter cut off before and after
+par(mfrow=c(2,2))
+mean_log_cpm3 <- aveLogCPM(gene_symbiont_DGE$counts)
+filter_threshold <- 0.5
+hist(mean_log_cpm3, breaks=200, ylim=c(0,2500)); abline(v=filter_threshold)
+qqnorm(mean_log_cpm3); abline(h=filter_threshold)
+#
+mean_log_cpm4 <- aveLogCPM(gene_symbiont_filtered1$counts)
+filter_threshold <- 0.5
+hist(mean_log_cpm4, breaks=200, ylim=c(0,2500)); abline(v=filter_threshold)
+qqnorm(mean_log_cpm4); abline(h=filter_threshold)
+
+# Check normalised and unnormalised data
+par(mfrow=c(1,2))
+Symbiont_lcpm1 <- cpm(gene_symbiont_filtered1, log=TRUE)
+boxplot(Symbiont_lcpm1, las=2, main="")
+title(main="A. Example: Unnormalised data",ylab="Log-cpm")
+#
+gene_symbiont_filtered2$samples$norm.factors
+Symbiont_lcpm2 <- cpm(gene_symbiont_filtered2, log=TRUE)
+boxplot(Symbiont_lcpm2, las=2, main="")
+title(main="B. Example: Normalised data",ylab="Log-cpm")
+
+dev.off() 
+
+
 
 # check that data is still all matching up
-table(symbiont_samples$SampleName == colnames(gene_symbiont_filtered))
+table(symbiont_samples$SampleName == colnames(gene_symbiont_filtered2))
 
-gene_symbiont_v <- voom(gene_symbiont_filtered, design = model.matrix(~Strain, data = gene_symbiont_filtered$samples), plot = T)
+gene_symbiont_v <- voom(gene_symbiont_filtered2, design = model.matrix(~Strain, data = gene_symbiont_filtered2$samples), plot = T)
 ```
 Fig. 1 Limma voom model.
 <br><br>
@@ -267,11 +409,12 @@ Fig. 1 Limma voom model.
 ```{r, fig.align='center'}
 #par(mar=c(5,6,3,1))
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
+par(mfrow=c(1,2))
 plotMDS(gene_symbiont_v, main = "gene counts",labels = symbiont_v$targets$FileName %>% str_remove("symbiont\\."), col = factor( symbiont_v$targets$FileName %>% str_replace("symbiont\\.(.*?)\\..*", "\\1")) %>% as.integer())
 
 plotMDS(symbiont_v, main = "exon counts", labels = symbiont_v$targets$FileName %>% str_remove("symbiont\\."), col = factor( symbiont_v$targets$FileName %>% str_replace("symbiont\\.(.*?)\\..*", "\\1")) %>% as.integer())
 
-#dev.off() 
+dev.off() 
 
 ```
 Fig. 2 MDS plot. Left side - estimate according to whole gene counts. Right side - estimate according to exon expression.
@@ -279,28 +422,34 @@ Fig. 2 MDS plot. Left side - estimate according to whole gene counts. Right side
   
 ## Fit expression model and check stats
 ```{r, fig.align='center'}
-gene_symbiont_fit <- lmFit(gene_symbiont_v, design = model.matrix(~ Strain, data = gene_symbiont_filtered$samples)) %>% 
+gene_symbiont_fit <- lmFit(gene_symbiont_v, design = model.matrix(~ Strain, data = gene_symbiont_filtered2$samples)) %>% 
   eBayes()
+
+# Summary
+summary(decideTests(gene_symbiont_fit))
 
 #view fit stats
 topTable(gene_symbiont_fit)
 
-#export toptable 
-topTable(gene_symbiont_fit, n=Inf) %>% write.table(, file="gene_symbiont_fit_table.csv", sep="\t", quote=F)
-
 #call genes as DE for different coefficients
-#Limiting to a 2X change or greater (1 log2 fold change)
-gene_symbiont_coef_sig <- decideTests(gene_symbiont_fit, lfc=0.5) %>% as.data.frame() %>%  bind_cols(gene_symbiont_fit$genes)
+#Limiting to a 2X change or greater (1 log2 fold change.. lfc = 1 = 2 fold change..)
+gene_symbiont_coef_sig <- decideTests(gene_symbiont_fit, lfc=1) %>% as.data.frame() %>%  bind_cols(gene_symbiont_fit$genes)
 
 #recreate venn diagram from prior work
 #par(mar=c(5,6,3,1))
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 
 decideTests(gene_symbiont_fit)[,-1] %>% 
-  vennDiagram(include=c("up","down"), main = "all genes")
+  vennDiagram(include=c("up","down"),
+            counts.col=c("brown3", "darkblue"),
+            circle.col = c("darkred", "blue", "green4"))
+title("Venndiagram symbiont. SS strains vs Wild type [lfc > 1]", line = 1)
 
-decideTests(gene_symbiont_fit, lfc=0.5)[,-1] %>% 
-  vennDiagram(include=c("up","down"), main = "lfc > 0.5")
+decideTests(gene_symbiont_fit, lfc=1)[,-1] %>% 
+  vennDiagram(include=c("up","down"),
+            counts.col=c("brown3", "darkblue"),
+            circle.col = c("darkred", "blue", "green4"))
+title("Venndiagram symbiont. SS strains vs Wild type [lfc > 1]", line = 1)
 
 #dev.off() 
 ```
@@ -309,35 +458,83 @@ Fig. 3 Venndiagram showing genes that are significantly different expressed betw
   
   
 ## Exploratory analysis 1
-### PLOTTING NEEDS MORE WORK 
+### Heatmaps coming soon.
 Filter genes from Venndiagram. Which are the genes that all selected strains have significantly expressed compared to the wild type?
-```{r}
+
+### DATA EXPORT
+Code silenced and hidden. See DGE table: symbiont_DGE_expression_FULLlist.xlsx.
+```{r, eval=FALSE, echo=FALSE}
+#export toptable, list of all filtered genes and their expression. P-value indicates if significant DEG among samples.
+symbiont_all_genes <- topTable(gene_symbiont_fit, n=Inf) %>% write.table(, file="symbiont_DGE_expression.csv", sep="\t", quote=F)
+
 # Filter genes from Venndiagram. Which are the genes that all selected strains have significantly expressed compared to the wild type. 
-symbiont_strains_all_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 1)
+symbiont_strains_3_5_8_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+symbiont_strains_3_5_8_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1, StrainStrain5 == -1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+symbiont_strain_3_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1) %>% .[order(.$Annotation),] 
+symbiont_strain_5_up <- filter(gene_symbiont_coef_sig, StrainStrain5 == 1)%>% .[order(.$Annotation),]
+symbiont_strain_8_up <- filter(gene_symbiont_coef_sig, StrainStrain8 == 1) %>% .[order(.$Annotation),] 
+symbiont_strain_3_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1) %>% .[order(.$Annotation),]
+symbiont_strain_5_down <- filter(gene_symbiont_coef_sig, StrainStrain5 == -1) %>% .[order(.$Annotation),] 
+symbiont_strain_8_down <- filter(gene_symbiont_coef_sig, StrainStrain8 == -1) %>% .[order(.$Annotation),] 
+#
+symbiont_strain_3_unique_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+symbiont_strain_3_unique_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+symbiont_strain_5_unique_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+symbiont_strain_5_unique_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+symbiont_strain_8_unique_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+symbiont_strain_8_unique_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+symbiont_strain_3_8_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+symbiont_strain_3_8_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),] 
+#
+symbiont_strain_3_5_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+symbiont_strain_3_5_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+symbiont_strain_5_8_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+symbiont_strain_5_8_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
 
-symbiont_strains_all_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1, StrainStrain5 == -1, StrainStrain8 == -1)
 
-symbiont_strain_3_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 0)
-
-symbiont_strain_5_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 0)
-
-symbiont_strain_8_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == 1)
-
-symbiont_strain_3_8_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 1) %>% write.table(, file="symbiont_strain_3_8_up.csv", sep="\t", quote=F)
-
-symbiont_strain_8only_up <- filter(gene_symbiont_coef_sig, StrainStrain8 == 1) %>% write.table(, file="symbiont_strain_8only_up.csv", sep="\t", quote=F)
-
+library(xlsx)
+#install.packages("xlsx")
+write.xlsx(symbiont_strains_3_5_8_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strains_3_5_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strains_3_5_8_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strains_3_5_8_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(symbiont_strain_3_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_3_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_3_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_3_down", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_3_unique_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_3_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_3_unique_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_3_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(symbiont_strain_5_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_5_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_5_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_5_down", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_5_unique_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_5_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_5_unique_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_5_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(symbiont_strain_8_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_8_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_8_down", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_8_unique_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_8_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_8_unique_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_8_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(symbiont_strain_3_8_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_3_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_3_8_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_3_8_down", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_3_5_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_3_5_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_3_5_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_3_5_down", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_5_8_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_5_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_5_8_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_5_8_down", append=TRUE, row.names=FALSE)
 
 ```
 <br><br>
-  
+
 ## Exploratory analysis 2
-### PLOTTING NEEDS MORE WORK, MAY BE POSSIBLE TO GET HEAT STRESS ASSOCIATED GENES FROM A PARTICULAR STRAIN?
+### PLOTTING NEEDS MORE WORK, 
+Get HEAT STRESS ASSOCIATED GENES FROM A PARTICULAR STRAIN
 Filter genes according to annotation. Which are heat stress related genes that are differentially expressed between the wild type and selected strains?
 ```{r}
 #filter based on gene symbiont_annotations
-topTable(gene_symbiont_fit, number = Inf, p.value = 0.05) %>% 
-  filter(Annotation %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase"))
+head(topTable(gene_symbiont_fit, number = Inf, p.value = 0.05) %>% 
+  filter(Annotation %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase")))
 
 ```
 <br><br>
@@ -400,27 +597,41 @@ dev.off()
 
 ```
 
-GO-Stats in ErmineJ
-```{r}
-# write table for GO-stats
+***
+<br><br><br>
 
+### GO-Stats in ErmineJ
+```{r, eval=FALSE}
+
+# write table for GO-stats
 # GeneExpressionProfiles-Symbiont.txt
-write.table(cbind(gene_symbiont_filtered$genes[,-2], gene_symbiont_filtered$counts), file="GeneExpressionProfiles-Symbiont.txt", row.names=F, sep="\t", quote=F)
+write.table(cbind(gene_symbiont_filtered2$genes[,-2], gene_symbiont_filtered2$counts), file="GeneExpressionProfiles-Symbiont.txt", row.names=F, sep="\t", quote=F)
+#
+write.table(cbind(gene_symbiont_filtered2$genes[,-2], gene_symbiont_v$E), file="GeneExpressionProfiles-Symbiont-lcpm.txt", row.names=F, sep="\t", quote=F)
 
 # GeneScores-Symbiont.txt 
 GeneScores_Symbiont <- topTable(gene_symbiont_fit, n=Inf) 
 write.table(cbind(GeneScores_Symbiont$gene,GeneScores_Symbiont$adj.P.Val), file="GeneScores-Symbiont.txt", sep="\t", row.names=F, quote=F, col.names =F)
 
+# GeneAnnotations-Symbiont.txt
+GeneScores_Symbiont2 <- topTable(gene_symbiont_fit, n=Inf) 
+write.table(cbind(GeneScores_Symbiont2$gene,GeneScores_Symbiont$Annotation),
+file="GeneAnnotations-Symbiont.txt", sep="\t", row.names=F, quote=F, col.names =F)
+
+
 # GeneExpressionProfiles-Host.txt
-write.table(cbind(gene_host_filtered$genes[,-2], gene_host_filtered$counts), file="GeneExpressionProfiles-Host.txt", row.names=F, sep="\t", quote=F)
+write.table(cbind(gene_host_filtered2$genes[,-2], gene_host_filtered2$counts), file="GeneExpressionProfiles-Host.txt", row.names=F, sep="\t", quote=F)
+#
+write.table(cbind(gene_host_filtered2$genes[,-2], gene_host_v$E), file="GeneExpressionProfiles-Host-lcpm.txt", row.names=F, sep="\t", quote=F)
 
 # GeneScores-Host.txt 
 GeneScores_Host <- topTable(gene_host_fit, n=Inf) 
 write.table(cbind(GeneScores_Host$gene,GeneScores_Host$adj.P.Val), file="GeneScores-Host.txt", sep="\t", row.names=F, quote=F, col.names =F)
 
 # GeneAnnotations-Host.txt
-GeneScores_Symbiont <- topTable(gene_symbiont_fit, n=Inf) 
-write.table(cbind(GeneScores_Symbiont$gene,GeneScores_Symbiont$Annotation,), file="GeneScores-Symbiont.txt", sep="\t", row.names=F, quote=F, col.names =F)
+GeneScores_Host2 <- topTable(gene_host_fit, n=Inf) 
+write.table(cbind(GeneScores_Host2$gene,GeneScores_Host$Annotation), file="GeneAnnotations-Host.txt", sep="\t", row.names=F, quote=F, col.names =F)
+
 ```
 ***
 <br><br>
@@ -437,7 +648,7 @@ write.table(cbind(GeneScores_Symbiont$gene,GeneScores_Symbiont$Annotation,), fil
 # __3 Next steps__
 
 * Summarise to gene level counts and redo DE analysis
-    - almost done, DE analysis needs a bit more work..
+    - pretty much almost done, all data exported into big table
     
 * Investigate DEXSeq for alternate exon usage
     - needs to be done
@@ -449,7 +660,7 @@ write.table(cbind(GeneScores_Symbiont$gene,GeneScores_Symbiont$Annotation,), fil
     - needs to be done, Stephen?
   
 * Do all the above with symbiont
-    - progressing, wrote code as much as I can
+    - pretty much almost done
 
 * Symbiont/host interactions
     - MixOmics package, needs to be done
@@ -487,7 +698,7 @@ It may be nice to order them according to their average counts from high to low,
 <br><br>
 
 Heatmap of most significant genes across samples (should be discriminant analysis, what genes distinguish WT10 from SS8?, at the moment it is across all samples).
-```{r, fig.align='center'}
+```{r, fig.align='center', eval=FALSE}
 # Heatmap of most significant genes across samples
 # Colour definitions
 library(RColorBrewer)
@@ -507,9 +718,10 @@ head(select_topsignf)
 
 # B) 
 # NOT WORKING
-# Extract genes of interest that are significantly different between SS8 and WT10, sort according to logvalues
+# Extract genes of interest that are significantly different 
+# between SS8 and WT10, sort according to logvalues
 gene_host_counts2 <- host_annotations %>% bind_cols(gene_host_counts[,-1])
-design <- model.matrix(~Strain, data = gene_host_filtered$samples)
+design <- model.matrix(~Strain, data = gene_host_filtered2$samples)
 colnames(design) 
 cont.matrix <- makeContrasts(SS8.vs.WT10 = (Intercept) - StrainStrain8, levels=design)
 cont.matrix
@@ -519,7 +731,9 @@ fit.cont <- eBayes(fit.cont)
 dim(fit.cont)
 summa.fit <- decideTests(fit.cont)
 summary(summa.fit)
-SelectedGenesSignf <- topTable(fit.cont,coef="SS8.vs.WT10", number = Inf, p.value = 0.05, sort.by="logFC") %>% filter(Annotation %>% str_detect("[G|g]lutathione"))
+SelectedGenesSignf <- topTable(fit.cont,coef="SS8.vs.WT10", number = Inf, p.value = 0.05,
+                               sort.by="logFC") %>% filter(Annotation %>%
+                               str_detect("[G|g]lutathione"))
 select_topsignf2 <- as.character(SelectedGenesSignf$Annotation)
 
 # C)
@@ -563,3 +777,102 @@ heatmap.2(
 )
 
 ```
+
+
+
+```{r, eval=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+# Packages
+library(limma)
+library(edgeR)
+library(Glimma)
+library(gplots)
+library(org.Mm.eg.db)
+library(RColorBrewer)
+library(BiasedUrn)
+library(openxlsx)
+library(vegan)
+library(rgl)
+library(ape)
+library(openxlsx)
+library(ggplot2)
+
+# Parameters
+SampleGroup<-"Symbiont"
+#SampleGroup<-"Host-STAR"
+time<-format(Sys.time(),"%d-%m-%Y")
+#
+# LOAD MATRIX
+# Only heat stress realted genes
+highly_variable_lcpm_NEW <- read.delim("data/Heatmaps/Symbiont-NewFilter-Heat_AVERAGE.txt", row.names=1)
+highly_variable_lcpm_NEWNEW <- as.matrix(highly_variable_lcpm_NEW, mode='any')
+#
+#
+# SELECTION IN R DOES NOT WORK - see var_genes file is a value with attributes, not sure how to convert TEST2NEW to it in order the subsetting would work..
+#library(dplyr)
+#TEST <- topTable(fit.cont, n=Inf, coef="SS8.vs.WT10")
+#TEST2 <- subset(TEST, select = c(5))
+#head(TEST2)
+#TEST2NEW <- as.matrix(TEST2, mode='numeric')
+#select_var_NEW <- names(sort(TEST2NEW, decreasing = TRUE)) [1:500]
+#head(select_var_NEW)
+#
+# Make new heat map
+TitleFile <- paste(SampleGroup,"Heat stress")
+Title <- paste(SampleGroup,"- Heat stress realted genes - significant genes across all samples")
+FileName <- paste(TitleFile,time,".jpg")
+jpeg(file=FileName, width = 4000, height = 3280, res = 450)
+par(mfrow = c(1,1))
+#
+lmat = rbind(0:3,2:1,4:4)
+#lmat = rbind(c(0,3),c(2,1),c(0,4))
+lwid = c(1.5,4)
+lhei = c(1.5,4,1)
+# lmat
+#
+mypalette <- brewer.pal(11, "RdYlBu")
+morecols <- colorRampPalette(mypalette)
+col.cell <- c("purple", "orange")[host_samples$CellType]
+column_labels <- paste(host_samples$CellType, host_samples$Strain, sep = ".")
+column_labels <- paste(host_samples$SampleName)
+#
+heatmap.2(
+  highly_variable_lcpm_NEWNEW,
+  Rowv = FALSE,
+  Colv = FALSE,
+  col = rev(morecols(50)),
+  trace = "none",
+  key.title = NA,
+  keysize = 1,
+  key.par=list(mgp=c(1, 0.5, 0), mar=c(5, 2, 2, 1)),
+  #lmat = lmat, 
+  #lmat=rbind(c(0, 4, 2), c(0, 1, 3)), lhei=c(2.5, 10), lwid=c(1, 10, 1),
+  main = " ",
+  ColSideColors = col.cell,
+  scale = "row",
+  labCol = column_labels,
+  ## fix stuff that falls off the image with the following line
+  margins = c(8,32)
+  ## remove junk on side
+  #labRow = ""
+)
+title(Title, line = +3.0, adj = +0.4)
+dev.off() 
+```
+<br><br>
+
+
+#### Heatmap trial
+```{r, eval=FALSE}
+library(gplots)
+
+# IT SHOULD WORK, TAKING THE logcpm values from the vomm model from $E but it does seem to be meaingful..
+basal.vs.lp.topgenes <- host_strain_3_up$gene[1:5]
+i <- which(gene_host_v$genes$gene %in% basal.vs.lp.topgenes)
+mycol <- colorpanel(1000,"blue","white","red")
+heatmap.2(lcpm[i,], scale="row",
+   labRow=gene_host_v$genes$Annotation [i], 
+   col=mycol, trace="none", density.info="none", 
+   margin=c(8,15), lhei=c(2,10), dendrogram="column")
+
+```
+  
