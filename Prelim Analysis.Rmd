@@ -352,7 +352,7 @@ plot_host_gene_by_exon <- function(gene) {
     geom_point(position = position_jitter(width = 0.2)) +
     stat_summary(colour = "black") +
     ggtitle(gene) +
-    facet_wrap(~exon) +
+    facet_wrap(~factor(exon, levels = stringr::str_sort(unique(exon), numeric = T))) +
     theme(legend.position = "none")
 }
 # exons of gene of choice
@@ -632,7 +632,7 @@ plot_symbiont_gene_by_exon <- function(gene) {
     geom_point(position = position_jitter(width = 0.2)) +
     stat_summary(colour = "black") +
     ggtitle(gene) +
-    facet_wrap(~exon) +
+    facet_wrap(~factor(exon, levels = stringr::str_sort(unique(exon), numeric = T))) +
     theme(legend.position = "none")
 }
 # exons of gene of choice
