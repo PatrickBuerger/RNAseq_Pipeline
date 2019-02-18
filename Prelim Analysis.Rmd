@@ -622,9 +622,10 @@ dev.off()
 
 ## Plot by exon, DOES NOT WORK AT THE MOMENT
 plot_symbiont_gene_by_exon <- function(gene) {
-  symbiont_v$E[str_detect(symbiont_v$genes$EntrezGeneID, "SymbC1.scaffold1.1.m1"), ] %>% 
+  symbiont_v$E %>% 
     as.data.frame() %>% 
-    mutate(exon = symbiont_v$genes$EntrezGeneID[str_detect(symbiont_v$genes$EntrezGeneID, "SymbC1.scaffold1.1.m1")]) %>% 
+    filter(str_detect(symbiont_v$genes$EntrezGeneID, gene)) %>% 
+    mutate(exon = symbiont_v$genes$EntrezGeneID[str_detect(symbiont_v$genes$EntrezGeneID, gene)]) %>% 
     gather(sample, expn, -exon) %>% 
     left_join(symbiont_v$targets %>% as.data.frame() %>% rownames_to_column("sample")) %>% 
     ggplot(aes(x=Strain, y = expn, colour = CellType)) + 
@@ -638,7 +639,7 @@ plot_symbiont_gene_by_exon <- function(gene) {
 
 par(mar=c(5,6,3,1))
 layout(matrix(c(1,2), 2, 2, byrow = TRUE))
-#plot_symbiont_gene_by_exon("SymbC1.scaffold1.1.m1")
+plot_symbiont_gene_by_exon("SymbC1.scaffold10700.1.m1")
 #plot_symbiont_gene_by_exon("aten_0.1.m1.4452.m1")
 #plot_symbiont_gene_by_exon("aten_0.1.m1.24908.m1")
 #plot_symbiont_gene_by_exon("aten_0.1.m1.17022.m1")
