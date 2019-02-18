@@ -293,9 +293,10 @@ plot_host_gene("aten_0.1.m1.17022.m1")
 
 ## Plot by exon
 plot_host_gene_by_exon <- function(gene) {
-  host_v$E[str_detect(host_v$genes$EntrezGeneID, "aten_0.1.m1.1.m1."), ] %>% 
-    as.data.frame() %>% 
-    mutate(exon = host_v$genes$EntrezGeneID[str_detect(host_v$genes$EntrezGeneID, "aten_0.1.m1.1.m1.")]) %>% 
+  host_v$E %>% 
+    as.data.frame() %>%
+    filter(str_detect(host_v$genes$EntrezGeneID, gene)) %>% 
+    mutate(exon = host_v$genes$EntrezGeneID[str_detect(host_v$genes$EntrezGeneID, gene)]) %>% 
     gather(sample, expn, -exon) %>% 
     left_join(host_v$targets %>% as.data.frame() %>% rownames_to_column("sample")) %>% 
     ggplot(aes(x=Strain, y = expn, colour = CellType)) + 
