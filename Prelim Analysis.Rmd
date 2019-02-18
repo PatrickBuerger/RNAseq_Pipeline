@@ -1,6 +1,10 @@
 ---
 title: "Preliminary Analysis"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 2
 ---
 
 ```{r setup, warning=FALSE, message=FALSE, error=FALSE}
@@ -23,21 +27,6 @@ require(knitr)
 # Set so that long lines in R will be wrapped:
 opts_chunk$set(tidy.opts=list(width.cutoff=40),tidy=TRUE)
 ```
-
-
-***
-<br><br>
-
-***
-
-# __Content__
-#### 1 Host expression
-#### 2 Symbiont expression
-#### 3 Next steps
-#### 4 Construction site (random stuff)
-***
-<br><br>
-
 
 # __1 Host expression__
 ## Loading data
