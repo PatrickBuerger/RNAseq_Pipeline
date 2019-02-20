@@ -28,6 +28,7 @@ require(knitr)
 opts_chunk$set(tidy.opts=list(width.cutoff=40),tidy=TRUE)
 ```
 
+
 # __1 Host expression__
 ## Loading data
 
@@ -121,7 +122,6 @@ plotMDS(host_v, main = "exon counts", labels = host_v$targets$FileName %>% str_r
 
 dev.off() 
 
-
 ```
 Fig. 2 MDS plot. Left side - estimate according to whole gene counts. Right side - estimate according to exon expression.
 <br><br>
@@ -178,7 +178,6 @@ all_DE_genes <- any_DE_genes%>%
   filter_if(~ is.numeric(.), all_vars(. != 0))
 
 ## Heatmap of DE genes
-
 # Normalise expression per-gene
 normalised_DE_gene_expression <- gene_host_v[gene_host_v$genes$gene %in% any_DE_genes$gene, ] %>% 
   as.data.frame() %>% 
@@ -208,8 +207,8 @@ expression_heatmap <- normalised_DE_gene_expression %>%
 
 expression_heatmap
 
-#Can also include the actual DE calls
 
+#Can also include the actual DE calls
 DE_calls <- any_DE_genes %>% 
   gather(Strain, DE_call, -gene, -Annotation) %>% 
   mutate(
@@ -308,7 +307,6 @@ head(topTable(gene_host_fit, number = Inf, p.value = 0.05) %>%
 
 
 ## Plotting, by gene and by exon.
-### ISSUE MARKED IN GITHUB - Gene expression does not seem to match with exon expression. Exon plots dont seem to make sense??
 ```{r, fig.align='center'}
 
 ## Plot by gene, according to annotation
@@ -324,11 +322,6 @@ plot_host_gene <- function(gene) {
     theme(legend.position = "none")
 }
 
-#plot_host_gene("heat shock 70")
-#plot_host_gene("small heat shock")
-#plot_host_gene("Glutathione S-transferase 1")
-#plot_host_gene("molecular chaperone")
-
 # gene of choice
 #par(mar=c(5,6,3,1))
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
@@ -336,9 +329,14 @@ plot_host_gene("aten_0.1.m1.446.m1")
 plot_host_gene("aten_0.1.m1.4452.m1")
 plot_host_gene("aten_0.1.m1.24908.m1")
 plot_host_gene("aten_0.1.m1.17022.m1")
-#dev.off() 
-# plot_host_gene("aten_0.1.m1.10016.m1")
 
+#dev.off() 
+
+# plot_host_gene("aten_0.1.m1.10016.m1")
+#plot_host_gene("heat shock 70")
+#plot_host_gene("small heat shock")
+#plot_host_gene("Glutathione S-transferase 1")
+#plot_host_gene("molecular chaperone")
 
 ## Plot by exon
 plot_host_gene_by_exon <- function(gene) {
@@ -356,17 +354,16 @@ plot_host_gene_by_exon <- function(gene) {
     theme(legend.position = "none")
 }
 # exons of gene of choice
-
-#par(mar=c(5,6,3,1))
-#layout(matrix(c(1,2), 2, 2, byrow = TRUE))
+par(mar=c(5,6,3,1))
+layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 plot_host_gene_by_exon("aten_0.1.m1.446.m1")
-#plot_host_gene_by_exon("aten_0.1.m1.4452.m1")
-#plot_host_gene_by_exon("aten_0.1.m1.24908.m1")
-#plot_host_gene_by_exon("aten_0.1.m1.17022.m1")
+plot_host_gene_by_exon("aten_0.1.m1.4452.m1")
+plot_host_gene_by_exon("aten_0.1.m1.24908.m1")
+plot_host_gene_by_exon("aten_0.1.m1.17022.m1")
 
 #dev.off() 
-
 ```
+
 ***
 <br><br>
 
@@ -377,22 +374,24 @@ plot_host_gene_by_exon("aten_0.1.m1.446.m1")
 ## Loading data
 
 Read in the symbiont count matrix and convert to log2cpm
-``` {r symbiont-data, warning=F, fig.align='center'}
+``` {r symbiont-data, message=FALSE, warning=FALSE, fig.align='center'}
 symbiont_counts <- read_tsv("data/MATRIX_Counts-FINAL-Symbiont.txt")
 symbiont_samples <- read_tsv("data/SampleInfo_Symbiont-STAR.txt")
 symbiont_annotations <- read_tsv("data/Symbiont_diamond_annot_20190117_1327.txt")
 #symbiont_exon_annnotations <- read_tsv("data/Symbiont-Gene-Annotation.txt")
+```
 
+```{r}
 # Exons
-symbiont_DGE <- DGEList(symbiont_counts[,-1], genes = symbiont_counts[,1], samples = symbiont_samples )
+symbiont_DGE <- DGEList(symbiont_counts[,-1], genes = symbiont_counts[,1], samples = symbiont_samples)
 
 filt <- filterByExpr(symbiont_DGE, design = model.matrix(~Strain, data = symbiont_DGE$samples), min.count = 10)
 
-symbiont_filtered <- symbiont_DGE[filt, , keep.lib.sizes = F]
+symbiont_filtered1 <- symbiont_DGE[filt, , keep.lib.sizes = F]
 
-symbiont_filtered <- calcNormFactors(symbiont_filtered)
+symbiont_filtered2 <- calcNormFactors(symbiont_filtered1)
 
-symbiont_v <- voom(symbiont_filtered, design = model.matrix(~Strain, data = symbiont_filtered$samples), plot = F)
+symbiont_v <- voom(symbiont_filtered2, design = model.matrix(~Strain, data = symbiont_filtered2$samples), plot = F)
 
 ```
 <br><br>
@@ -410,7 +409,7 @@ table((symbiont_annotations[,1] == (gene_symbiont_counts[,1])))
 # then bind symbiont_annotations to gene list
 gene_symbiont_DGE <- DGEList(gene_symbiont_counts[,-1], genes = gene_symbiont_counts[,1]%>% bind_cols(symbiont_annotations[,-1]), samples = symbiont_samples)
 
-# check that annotation table and gene_symbiont_DGE match.. needs to be all TRUE events, two columns to match
+# check that annotation table and gene_symbiont_DGE match.. needs to be all TRUE events. Two columns to match
 table((gene_symbiont_DGE$genes == (symbiont_annotations)))
 
 gene_symbiont_filt <- filterByExpr(gene_symbiont_DGE, design = model.matrix(~Strain, data = gene_symbiont_DGE$samples), min.count = 40)
@@ -447,6 +446,7 @@ dev.off()
 
 
 
+
 # check that data is still all matching up
 table(symbiont_samples$SampleName == colnames(gene_symbiont_filtered2))
 
@@ -460,7 +460,7 @@ Fig. 1 Limma voom model.
 #par(mar=c(5,6,3,1))
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 par(mfrow=c(1,2))
-plotMDS(gene_symbiont_v, main = "gene counts",labels = symbiont_v$targets$FileName %>% str_remove("symbiont\\."), col = factor( symbiont_v$targets$FileName %>% str_replace("symbiont\\.(.*?)\\..*", "\\1")) %>% as.integer())
+plotMDS(gene_symbiont_v, main = "gene counts",labels = gene_symbiont_v$targets$FileName %>% str_remove("symbiont\\."), col = factor( gene_symbiont_v$targets$FileName %>% str_replace("symbiont\\.(.*?)\\..*", "\\1")) %>% as.integer())
 #
 plotMDS(symbiont_v, main = "exon counts", labels = symbiont_v$targets$FileName %>% str_remove("symbiont\\."), col = factor( symbiont_v$targets$FileName %>% str_replace("symbiont\\.(.*?)\\..*", "\\1")) %>% as.integer())
 
@@ -468,8 +468,8 @@ dev.off()
 
 ```
 Fig. 2 MDS plot. Left side - estimate according to whole gene counts. Right side - estimate according to exon expression.
-<br><br>
-  
+<br><br>  
+
 ## Fit expression model and check stats
 ```{r, fig.align='center'}
 gene_symbiont_fit <- lmFit(gene_symbiont_v, design = model.matrix(~ Strain, data = gene_symbiont_filtered2$samples)) %>% 
@@ -482,7 +482,7 @@ summary(decideTests(gene_symbiont_fit))
 topTable(gene_symbiont_fit)
 
 #call genes as DE for different coefficients
-#Limiting to a 2X change or greater (1 log2 fold change.. lfc = 1 = 2 fold change..)
+#Limiting to a 2X change or greater (1 log2 fold change.. lfc1 = 2 fold change..)
 gene_symbiont_coef_sig <- decideTests(gene_symbiont_fit, lfc=1) %>% as.data.frame() %>%  bind_cols(gene_symbiont_fit$genes)
 
 #recreate venn diagram from prior work
@@ -508,13 +508,74 @@ Fig. 3 Venndiagram showing genes that are significantly different expressed betw
   
   
 ## Exploratory analysis 1
-### Heatmaps coming soon.
+							 
 Filter genes from Venndiagram. Which are the genes that all selected strains have significantly expressed compared to the wild type?
+```{r DE-heatmap-plot}
+# Filter genes called as DE to control in any strain
+any_DE_genes_symbiont <- decideTests(gene_symbiont_fit, lfc=1)[,-1] %>% 
+  as.data.frame() %>% 
+  bind_cols(gene_symbiont_fit$genes) %>% 
+  filter_if(~ is.numeric(.), any_vars(. != 0))
+
+#Separate out ones called as DE in *all* strains as well
+all_DE_genes_symbiont <- any_DE_genes_symbiont%>% 
+  filter_if(~ is.numeric(.), all_vars(. != 0))
+
+## Heatmap of DE genes
+# Normalise expression per-gene
+normalised_DE_gene_expression_symbiont <- gene_symbiont_v[gene_symbiont_v$genes$gene %in% any_DE_genes_symbiont$gene, ] %>% 
+  as.data.frame() %>% 
+  gather(SampleName, log2cpm, -gene, -Annotation) %>% 
+  left_join(symbiont_samples) %>% 
+  group_by(gene) %>%
+  mutate(scaled_log2cpm = scale(log2cpm)) %>% 
+  ungroup
+
+# Cluster to show patterns
+clustering_symbiont <- normalised_DE_gene_expression_symbiont %>% 
+  select(gene, SampleName, scaled_log2cpm) %>% 
+  spread(SampleName, scaled_log2cpm) %>% 
+  select(-gene) %>% 
+  cluster::agnes()
+
+# Plot it
+expression_heatmap_symbiont <- normalised_DE_gene_expression_symbiont %>% 
+  mutate(gene = factor(gene, levels = gene %>% unique %>% .[clustering_symbiont$order] )) %>% 
+  ggplot(aes(x=SampleName, y = gene, fill = scaled_log2cpm)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "#762a83", high = "#1b7837") + #Purple/green brewer palette
+  theme_bw() +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
+  scale_x_discrete(labels = symbiont_samples$Strain %>% str_remove("Strain")) +
+  xlab("Sample Strain")
+
+expression_heatmap_symbiont
+
+
+#Can also include the actual DE calls
+DE_calls_symbiont <- any_DE_genes_symbiont %>% 
+  gather(Strain, DE_call, -gene, -Annotation) %>% 
+  mutate(
+    Strain = str_remove(Strain, "StrainStrain"), 
+    gene = factor(gene, levels = gene %>% unique %>% .[clustering_symbiont$order] )
+    ) %>% 
+  ggplot(aes(x = Strain, y = gene, fill = as.factor(DE_call))) + 
+  geom_tile() + 
+  theme_minimal() +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.position = "none") +
+  scale_x_discrete() +
+  xlab("DE Calls") + 
+  scale_fill_manual(values = c("blue", "white","red"))
+
+cowplot::plot_grid(DE_calls_symbiont, expression_heatmap_symbiont + ylab(NULL), align = "v", rel_widths = c(1,5), axis = "tb")
+```
+
 
 ### DATA EXPORT
 Code silenced and hidden. See DGE table: symbiont_DGE_expression_FULLlist.xlsx.
 ```{r, eval=FALSE, echo=FALSE}
 #export toptable, list of all filtered genes and their expression. P-value indicates if significant DEG among samples.
+												
 symbiont_all_genes <- topTable(gene_symbiont_fit, n=Inf) %>% write.table(, file="symbiont_DGE_expression.csv", sep="\t", quote=F)
 
 # Filter genes from Venndiagram. Which are the genes that all selected strains have significantly expressed compared to the wild type. 
@@ -528,9 +589,13 @@ symbiont_strain_3_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1) %>
 symbiont_strain_5_down <- filter(gene_symbiont_coef_sig, StrainStrain5 == -1) %>% .[order(.$Annotation),] 
 symbiont_strain_8_down <- filter(gene_symbiont_coef_sig, StrainStrain8 == -1) %>% .[order(.$Annotation),] 
 #
+																							  
+																								 
 symbiont_strain_3_unique_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
 symbiont_strain_3_unique_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
 #
+																							  
+																								 
 symbiont_strain_5_unique_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
 symbiont_strain_5_unique_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
 #
@@ -545,6 +610,7 @@ symbiont_strain_3_5_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1, 
 #
 symbiont_strain_5_8_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
 symbiont_strain_5_8_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+
 
 
 library(xlsx)
@@ -594,6 +660,7 @@ head(topTable(gene_symbiont_fit, number = Inf, p.value = 0.05) %>%
 ## Plotting, plot by gene and by exon.
 ### ISSUE MARKED IN GITHUB - Gene expression does not seem to match with exon expression. Exon plots dont seem to make sense??
 ```{r, fig.align='center'}
+
 ## Plot by gene, according to annotation
 plot_symbiont_gene <- function(gene) {
   #expn <- gene_symbiont_v$E[gene_symbiont_v$genes$Annotation == gene, ]
@@ -606,9 +673,10 @@ plot_symbiont_gene <- function(gene) {
     ggtitle(gene) +
     theme(legend.position = "none")
 }
+
 # gene of choice
-par(mar=c(5,6,3,1))
-layout(matrix(c(1,2), 2, 2, byrow = TRUE))
+#par(mar=c(5,6,3,1))
+#layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 plot_symbiont_gene("SymbC1.scaffold2580.3.m1")
 plot_symbiont_gene("SymbC1.scaffold4974.6.m1")
 plot_symbiont_gene("SymbC1.scaffold170.11.m1")
@@ -616,11 +684,7 @@ plot_symbiont_gene("SymbC1.scaffold6703.2.m1")
 
 dev.off() 
 
-# Does not work...
-# plot_symbiont_gene("molecular chaperone")
-
-
-## Plot by exon, DOES NOT WORK AT THE MOMENT
+				
 plot_symbiont_gene_by_exon <- function(gene) {
   symbiont_v$E %>% 
     as.data.frame() %>% 
@@ -704,8 +768,8 @@ write.table(cbind(GeneScores_Host2$gene,GeneScores_Host$Annotation), file="GeneA
     - needs to be done
 
 * Annotate with GO categories for functional analysis
-    - progressing, currently computing InterPro scan for symbiont, host still waiting. 
-
+    - DONE, wouldbe good to have a different contrast, SS8 vs SS3+SS5
+    
 * Cluster expression and plot cluster patterns
     - needs to be done, Stephen?
   
@@ -716,7 +780,7 @@ write.table(cbind(GeneScores_Host2$gene,GeneScores_Host$Annotation), file="GeneA
     - MixOmics package, needs to be done
     
 * Exon expression plots dont seem to make sense. Summarised in "Issues" tab.
-    - Needs work
+    - Needs work at host, symbiont does work now, thanks for fixing. will have a look.
 
 * WT does produce a lot of ROS... SS dont produce ROS. What can we find in the data to support this.. looking for SOD and other ROS scavengers. May be hypothesis testing by pulling out stress related genes? What was the code again for it please?
     - Code is there, needs to be done.
@@ -925,4 +989,12 @@ heatmap.2(lcpm[i,], scale="row",
    margin=c(8,15), lhei=c(2,10), dendrogram="column")
 
 ```
-  
+
+
+   
+   
+
+```
+***
+<br><br>
+
