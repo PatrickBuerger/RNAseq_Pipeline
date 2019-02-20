@@ -251,7 +251,7 @@ Filter genes according to annotation. Which are heat stress related genes that a
 ```{r}
 #filter based on gene host_annotations
 head(topTable(gene_host_fit, number = Inf, p.value = 0.05) %>% 
-  filter(Annotation %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase")))
+  filter(Annotation %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase|[P|p]eroxidase")))
 
 ```
 <br><br>
@@ -411,7 +411,7 @@ Fig. 1 Limma voom model.
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 par(mfrow=c(1,2))
 plotMDS(gene_symbiont_v, main = "gene counts",labels = symbiont_v$targets$FileName %>% str_remove("symbiont\\."), col = factor( symbiont_v$targets$FileName %>% str_replace("symbiont\\.(.*?)\\..*", "\\1")) %>% as.integer())
-
+#
 plotMDS(symbiont_v, main = "exon counts", labels = symbiont_v$targets$FileName %>% str_remove("symbiont\\."), col = factor( symbiont_v$targets$FileName %>% str_replace("symbiont\\.(.*?)\\..*", "\\1")) %>% as.integer())
 
 dev.off() 
@@ -443,13 +443,13 @@ decideTests(gene_symbiont_fit)[,-1] %>%
   vennDiagram(include=c("up","down"),
             counts.col=c("brown3", "darkblue"),
             circle.col = c("darkred", "blue", "green4"))
-title("Venndiagram symbiont. SS strains vs Wild type [lfc > 1]", line = 1)
+title("Venndiagram symbiont. SS strains vs Wild type [all genes]", line = 1)
 
-decideTests(gene_symbiont_fit, lfc=1)[,-1] %>% 
+decideTests(gene_symbiont_fit, lfc=0.5)[,-1] %>% 
   vennDiagram(include=c("up","down"),
             counts.col=c("brown3", "darkblue"),
             circle.col = c("darkred", "blue", "green4"))
-title("Venndiagram symbiont. SS strains vs Wild type [lfc > 1]", line = 1)
+title("Venndiagram symbiont. SS strains vs Wild type [lfc > 0.5]", line = 1)
 
 #dev.off() 
 ```
@@ -534,7 +534,7 @@ Filter genes according to annotation. Which are heat stress related genes that a
 ```{r}
 #filter based on gene symbiont_annotations
 head(topTable(gene_symbiont_fit, number = Inf, p.value = 0.05) %>% 
-  filter(Annotation %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase")))
+  filter(Annotation %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase|[P|p]eroxidase")))
 
 ```
 <br><br>
@@ -617,7 +617,6 @@ write.table(cbind(GeneScores_Symbiont$gene,GeneScores_Symbiont$adj.P.Val), file=
 GeneScores_Symbiont2 <- topTable(gene_symbiont_fit, n=Inf) 
 write.table(cbind(GeneScores_Symbiont2$gene,GeneScores_Symbiont$Annotation),
 file="GeneAnnotations-Symbiont.txt", sep="\t", row.names=F, quote=F, col.names =F)
-
 
 # GeneExpressionProfiles-Host.txt
 write.table(cbind(gene_host_filtered2$genes[,-2], gene_host_filtered2$counts), file="GeneExpressionProfiles-Host.txt", row.names=F, sep="\t", quote=F)
@@ -741,7 +740,7 @@ select_topsignf2 <- as.character(SelectedGenesSignf$Annotation)
 # Extract genes of interest across all genes # NOT WORKING
 gene_host_counts2 <- host_annotations %>% bind_cols(gene_host_counts[,-1])
 SelectedGenesSignf <- topTable(gene_host_fit, number = Inf, p.value = 0.05) %>% 
-  filter(Annotation %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase"))
+  filter(Annotation %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase|[P|p]eroxidase"))
 #
 select_topsignf3 <- as.character(SelectedGenesSignf$Annotation)
 head(select_topsignf3)
@@ -797,13 +796,13 @@ library(openxlsx)
 library(ggplot2)
 
 # Parameters
-SampleGroup<-"Symbiont"
+SampleGroup<-"Host"
 #SampleGroup<-"Host-STAR"
 time<-format(Sys.time(),"%d-%m-%Y")
 #
 # LOAD MATRIX
 # Only heat stress realted genes
-highly_variable_lcpm_NEW <- read.delim("data/Heatmaps/Symbiont-NewFilter-Heat_AVERAGE.txt", row.names=1)
+highly_variable_lcpm_NEW <- read.delim("data/Heatmaps/Host-NewFilter-Apoptosis_SS3_2.txt", row.names=1)
 highly_variable_lcpm_NEWNEW <- as.matrix(highly_variable_lcpm_NEW, mode='any')
 #
 #
@@ -817,8 +816,8 @@ highly_variable_lcpm_NEWNEW <- as.matrix(highly_variable_lcpm_NEW, mode='any')
 #head(select_var_NEW)
 #
 # Make new heat map
-TitleFile <- paste(SampleGroup,"Heat stress")
-Title <- paste(SampleGroup,"- Heat stress realted genes - significant genes across all samples")
+TitleFile <- paste(SampleGroup,"Apop")
+Title <- paste(SampleGroup,"- stress realted genes - sign <0.0001 genes across all samples")
 FileName <- paste(TitleFile,time,".jpg")
 jpeg(file=FileName, width = 4000, height = 3280, res = 450)
 par(mfrow = c(1,1))
