@@ -1,6 +1,10 @@
 ---
 title: "Preliminary Analysis"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 2
 ---
 
 ```{r setup, warning=FALSE, message=FALSE, error=FALSE}
@@ -23,21 +27,6 @@ require(knitr)
 # Set so that long lines in R will be wrapped:
 opts_chunk$set(tidy.opts=list(width.cutoff=40),tidy=TRUE)
 ```
-
-
-***
-<br><br>
-
-***
-
-# __Content__
-#### 1 Host expression
-#### 2 Symbiont expression
-#### 3 Next steps
-#### 4 Construction site (random stuff)
-***
-<br><br>
-
 
 # __1 Host expression__
 ## Loading data
@@ -177,6 +166,66 @@ Fig. 3 Venndiagram showing genes that are significantly different expressed betw
 ## Exploratory analysis 1
 ### PLOTTING NEEDS MORE WORK 
 Filter genes from Venndiagram. Which are the genes that all selected strains have significantly expressed compared to the wild type?
+```{r DE-heatmap-plot}
+# Filter genes called as DE to control in any strain
+any_DE_genes <- decideTests(gene_host_fit, lfc=1)[,-1] %>% 
+  as.data.frame() %>% 
+  bind_cols(gene_host_fit$genes) %>% 
+  filter_if(~ is.numeric(.), any_vars(. != 0))
+
+#Separate out ones called as DE in *all* strains as well
+all_DE_genes <- any_DE_genes%>% 
+  filter_if(~ is.numeric(.), all_vars(. != 0))
+
+## Heatmap of DE genes
+
+# Normalise expression per-gene
+normalised_DE_gene_expression <- gene_host_v[gene_host_v$genes$gene %in% any_DE_genes$gene, ] %>% 
+  as.data.frame() %>% 
+  gather(SampleName, log2cpm, -gene, -Annotation) %>% 
+  left_join(host_samples) %>% 
+  group_by(gene) %>% 
+  mutate(scaled_log2cpm = scale(log2cpm)) %>% 
+  ungroup
+
+# Cluster to show patterns
+clustering <- normalised_DE_gene_expression %>% 
+  select(gene, SampleName, scaled_log2cpm) %>% 
+  spread(SampleName, scaled_log2cpm) %>% 
+  select(-gene) %>% 
+  cluster::agnes()
+
+# Plot it
+expression_heatmap <- normalised_DE_gene_expression %>% 
+  mutate(gene = factor(gene, levels = gene %>% unique %>% .[clustering$order] )) %>% 
+  ggplot(aes(x=SampleName, y = gene, fill = scaled_log2cpm)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "#762a83", high = "#1b7837") + #Purple/green brewer palette
+  theme_bw() +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
+  scale_x_discrete(labels = host_samples$Strain %>% str_remove("Strain")) +
+  xlab("Sample Strain")
+
+expression_heatmap
+
+#Can also include the actual DE calls
+
+DE_calls <- any_DE_genes %>% 
+  gather(Strain, DE_call, -gene, -Annotation) %>% 
+  mutate(
+    Strain = str_remove(Strain, "StrainStrain"), 
+    gene = factor(gene, levels = gene %>% unique %>% .[clustering$order] )
+    ) %>% 
+  ggplot(aes(x = Strain, y = gene, fill = as.factor(DE_call))) + 
+  geom_tile() + 
+  theme_minimal() +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.position = "none") +
+  scale_x_discrete() +
+  xlab("DE Calls") + 
+  scale_fill_manual(values = c("blue", "white","red"))
+
+cowplot::plot_grid(DE_calls, expression_heatmap + ylab(NULL), align = "v", rel_widths = c(1,5), axis = "tb")
+```
 
 ### DATA EXPORT
 Code silenced and hidden. See DGE table: host_DGE_expression_FULLlist.xlsx.
@@ -293,16 +342,17 @@ plot_host_gene("aten_0.1.m1.17022.m1")
 
 ## Plot by exon
 plot_host_gene_by_exon <- function(gene) {
-  host_v$E[str_detect(host_v$genes$EntrezGeneID, "aten_0.1.m1.1.m1."), ] %>% 
-    as.data.frame() %>% 
-    mutate(exon = host_v$genes$EntrezGeneID[str_detect(host_v$genes$EntrezGeneID, "aten_0.1.m1.1.m1.")]) %>% 
+  host_v$E %>% 
+    as.data.frame() %>%
+    filter(str_detect(host_v$genes$EntrezGeneID, gene)) %>% 
+    mutate(exon = host_v$genes$EntrezGeneID[str_detect(host_v$genes$EntrezGeneID, gene)]) %>% 
     gather(sample, expn, -exon) %>% 
     left_join(host_v$targets %>% as.data.frame() %>% rownames_to_column("sample")) %>% 
     ggplot(aes(x=Strain, y = expn, colour = CellType)) + 
     geom_point(position = position_jitter(width = 0.2)) +
     stat_summary(colour = "black") +
     ggtitle(gene) +
-    facet_wrap(~exon) +
+    facet_wrap(~factor(exon, levels = stringr::str_sort(unique(exon), numeric = T))) +
     theme(legend.position = "none")
 }
 # exons of gene of choice
@@ -572,23 +622,24 @@ dev.off()
 
 ## Plot by exon, DOES NOT WORK AT THE MOMENT
 plot_symbiont_gene_by_exon <- function(gene) {
-  symbiont_v$E[str_detect(symbiont_v$genes$EntrezGeneID, "SymbC1.scaffold1.1.m1"), ] %>% 
+  symbiont_v$E %>% 
     as.data.frame() %>% 
-    mutate(exon = symbiont_v$genes$EntrezGeneID[str_detect(symbiont_v$genes$EntrezGeneID, "SymbC1.scaffold1.1.m1")]) %>% 
+    filter(str_detect(symbiont_v$genes$EntrezGeneID, gene)) %>% 
+    mutate(exon = symbiont_v$genes$EntrezGeneID[str_detect(symbiont_v$genes$EntrezGeneID, gene)]) %>% 
     gather(sample, expn, -exon) %>% 
     left_join(symbiont_v$targets %>% as.data.frame() %>% rownames_to_column("sample")) %>% 
     ggplot(aes(x=Strain, y = expn, colour = CellType)) + 
     geom_point(position = position_jitter(width = 0.2)) +
     stat_summary(colour = "black") +
     ggtitle(gene) +
-    facet_wrap(~exon) +
+    facet_wrap(~factor(exon, levels = stringr::str_sort(unique(exon), numeric = T))) +
     theme(legend.position = "none")
 }
 # exons of gene of choice
 
 par(mar=c(5,6,3,1))
 layout(matrix(c(1,2), 2, 2, byrow = TRUE))
-#plot_symbiont_gene_by_exon("SymbC1.scaffold1.1.m1")
+plot_symbiont_gene_by_exon("SymbC1.scaffold10700.1.m1")
 #plot_symbiont_gene_by_exon("aten_0.1.m1.4452.m1")
 #plot_symbiont_gene_by_exon("aten_0.1.m1.24908.m1")
 #plot_symbiont_gene_by_exon("aten_0.1.m1.17022.m1")
