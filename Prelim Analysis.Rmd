@@ -163,10 +163,55 @@ Fig. 3 Venndiagram showing genes that are significantly different expressed betw
 <br><br>
 
 
+## Make additional contrasts to compare host with SS8 to hosts with other symbiont strains (SS3 and SS5).
+```{r Make contrasts Host}
+
+# re-design model without intercept
+gene_host_v_NEW <- voom(gene_host_filtered2, design = model.matrix(~0 +Strain, data = gene_host_filtered2$samples), plot = T)
+
+gene_host_fit_NEW <- lmFit(gene_host_v_NEW, design = model.matrix(~0 + Strain, data = gene_host_filtered2$samples)) 
+
+design <- model.matrix(~0 + Strain, data = gene_host_filtered2$samples)
+
+colnames(design)
+
+## CONTRAST COMPARING THE WT and SS TYPEs WITH EACH OTHER
+cont.matrix <- makeContrasts(SS3.vs.WT10 = StrainStrain3 - StrainStrain10, SS5.vs.WT10 = StrainStrain5 - StrainStrain10, SS8.vs.WT10 = StrainStrain8 - StrainStrain10, SS3.vs.SS5 = StrainStrain3 - StrainStrain5, SS8.vs.SS3 = StrainStrain8 - StrainStrain3, SS8.vs.SS5 = StrainStrain8 - StrainStrain5, levels=design)
+cont.matrix
+
+## fit contrasts
+fit.cont <- contrasts.fit(gene_host_fit_NEW, cont.matrix)
+fit.cont <- eBayes(fit.cont)
+## check it out
+# fit.cont
+dim(fit.cont)
+summary(decideTests(fit.cont))
+# check with other intercept model that up and down regulated genes are still the same between both models - yes, nice..
+
+```
+
+```{r Data Export Contrasts Host, eval=FALSE}
+library(openxlsx)
+SampleGroup<-"Host-NEW"
+Title <- paste(SampleGroup,"DGE-Table")
+FileName <- paste(Title,".xlsx")
+limma.res1 <- topTable(fit.cont,coef="SS3.vs.WT10",sort.by="p",n="Inf")
+limma.res2 <- topTable(fit.cont,coef="SS5.vs.WT10",sort.by="p",n="Inf")
+limma.res3 <- topTable(fit.cont,coef="SS8.vs.WT10",sort.by="p",n="Inf")
+limma.res4 <- topTable(fit.cont,coef="SS3.vs.SS5",sort.by="p",n="Inf")
+limma.res5 <- topTable(fit.cont,coef="SS8.vs.SS3",sort.by="p",n="Inf")
+limma.res6 <- topTable(fit.cont,coef="SS8.vs.SS5",sort.by="p",n="Inf")
+list_of_datasets_host <- list("SS3.vs.WT10" = limma.res1, "SS5.vs.WT10" = limma.res2, "SS8.vs.WT10" = limma.res3, "SS3.vs.SS5" = limma.res4, "SS8.vs.SS3" = limma.res5, "SS8.vs.SS5" = limma.res6)
+write.xlsx(list_of_datasets_host, file=FileName, sep="\t", row.names=TRUE) 
+```
+<br><br>
+
+
+
+
 ## Exploratory analysis 1
-### PLOTTING NEEDS MORE WORK 
 Filter genes from Venndiagram. Which are the genes that all selected strains have significantly expressed compared to the wild type?
-```{r DE-heatmap-plot}
+```{r DE-heatmap-plot-symbiont}
 # Filter genes called as DE to control in any strain
 any_DE_genes <- decideTests(gene_host_fit, lfc=1)[,-1] %>% 
   as.data.frame() %>% 
@@ -323,12 +368,12 @@ plot_host_gene <- function(gene) {
 }
 
 # gene of choice
-#par(mar=c(5,6,3,1))
-#layout(matrix(c(1,2), 2, 2, byrow = TRUE))
-plot_host_gene("aten_0.1.m1.446.m1")
-plot_host_gene("aten_0.1.m1.4452.m1")
+par(mar=c(5,6,3,1))
+layout(matrix(c(1,2), 2, 2, byrow = TRUE))
+#plot_host_gene("aten_0.1.m1.446.m1")
+#plot_host_gene("aten_0.1.m1.4452.m1")
 plot_host_gene("aten_0.1.m1.24908.m1")
-plot_host_gene("aten_0.1.m1.17022.m1")
+#plot_host_gene("aten_0.1.m1.17022.m1")
 
 #dev.off() 
 
@@ -356,10 +401,10 @@ plot_host_gene_by_exon <- function(gene) {
 # exons of gene of choice
 par(mar=c(5,6,3,1))
 layout(matrix(c(1,2), 2, 2, byrow = TRUE))
-plot_host_gene_by_exon("aten_0.1.m1.446.m1")
-plot_host_gene_by_exon("aten_0.1.m1.4452.m1")
+#plot_host_gene_by_exon("aten_0.1.m1.446.m1")
+#plot_host_gene_by_exon("aten_0.1.m1.4452.m1")
 plot_host_gene_by_exon("aten_0.1.m1.24908.m1")
-plot_host_gene_by_exon("aten_0.1.m1.17022.m1")
+#plot_host_gene_by_exon("aten_0.1.m1.17022.m1")
 
 #dev.off() 
 ```
@@ -451,6 +496,7 @@ dev.off()
 table(symbiont_samples$SampleName == colnames(gene_symbiont_filtered2))
 
 gene_symbiont_v <- voom(gene_symbiont_filtered2, design = model.matrix(~Strain, data = gene_symbiont_filtered2$samples), plot = T)
+
 ```
 Fig. 1 Limma voom model.
 <br><br>
@@ -483,7 +529,11 @@ topTable(gene_symbiont_fit)
 
 #call genes as DE for different coefficients
 #Limiting to a 2X change or greater (1 log2 fold change.. lfc1 = 2 fold change..)
-gene_symbiont_coef_sig <- decideTests(gene_symbiont_fit, lfc=1) %>% as.data.frame() %>%  bind_cols(gene_symbiont_fit$genes)
+gene_symbiont_coef_sig_lfc1 <- decideTests(gene_symbiont_fit, lfc=1) %>% as.data.frame() %>%  bind_cols(gene_symbiont_fit$genes)
+
+gene_symbiont_coef_sig_lfc0.5 <- decideTests(gene_symbiont_fit, lfc=0.5) %>% as.data.frame() %>%  bind_cols(gene_symbiont_fit$genes)
+
+gene_symbiont_coef_sig_all <- decideTests(gene_symbiont_fit) %>% as.data.frame() %>%  bind_cols(gene_symbiont_fit$genes)
 
 #recreate venn diagram from prior work
 #par(mar=c(5,6,3,1))
@@ -499,18 +549,62 @@ decideTests(gene_symbiont_fit, lfc=0.5)[,-1] %>%
   vennDiagram(include=c("up","down"),
             counts.col=c("brown3", "darkblue"),
             circle.col = c("darkred", "blue", "green4"))
-title("Venndiagram symbiont. SS strains vs Wild type [lfc > 0.5]", line = 1)
+title("Venndiagram symbiont. SS strains vs Wild type [lfc > 1]", line = 1)
 
 #dev.off() 
 ```
 Fig. 3 Venndiagram showing genes that are significantly different expressed between the wild type and respective selected strains. For example: With lfc > 1 Strain 5 has 207 gene significantly upregulated and 16 genes downregulated compared to the wild type.
 <br><br>
   
+
+## Make additional contrasts to compare symbiont SS8 to other symbiont strains (SS3 and SS5).
+```{r Make contrasts Symbiont}
+
+# re-design model without intercept
+gene_symbiont_v_NEW <- voom(gene_symbiont_filtered2, design = model.matrix(~0 +Strain, data = gene_symbiont_filtered2$samples), plot = T)
+
+gene_symbiont_fit_NEW <- lmFit(gene_symbiont_v_NEW, design = model.matrix(~0 +Strain, data = gene_symbiont_filtered2$samples)) 
+
+design <- model.matrix(~0 +Strain, data = gene_symbiont_filtered2$samples)
+
+colnames(design)
+
+## CONTRAST COMPARING THE WT and SS TYPEs WITH EACH OTHER
+cont.matrix <- makeContrasts(SS3.vs.WT10 = StrainStrain3 - StrainStrain10, SS5.vs.WT10 = StrainStrain5 - StrainStrain10, SS8.vs.WT10 = StrainStrain8 - StrainStrain10, SS3.vs.SS5 = StrainStrain3 - StrainStrain5, SS8.vs.SS3 = StrainStrain8 - StrainStrain3, SS8.vs.SS5 = StrainStrain8 - StrainStrain5, levels=design)
+cont.matrix
+
+## fit contrasts
+fit.cont <- contrasts.fit(gene_symbiont_fit_NEW, cont.matrix)
+fit.cont <- eBayes(fit.cont)
+## check it out
+# fit.cont
+dim(fit.cont)
+summary(decideTests(fit.cont))
+# check with other intercept model that up and down regulated genes are still the same between both models - yes, nice..
+```
+
+```{r Data Export Contrasts Symbiont, eval=FALSE}
+library(openxlsx)
+SampleGroup<-"Symbiont-NEW"
+Title <- paste(SampleGroup,"DGE-Table")
+FileName <- paste(Title,".xlsx")
+limma.res1 <- topTable(fit.cont,coef="SS3.vs.WT10",sort.by="p",n="Inf")
+limma.res2 <- topTable(fit.cont,coef="SS5.vs.WT10",sort.by="p",n="Inf")
+limma.res3 <- topTable(fit.cont,coef="SS8.vs.WT10",sort.by="p",n="Inf")
+limma.res4 <- topTable(fit.cont,coef="SS3.vs.SS5",sort.by="p",n="Inf")
+limma.res5 <- topTable(fit.cont,coef="SS8.vs.SS3",sort.by="p",n="Inf")
+limma.res6 <- topTable(fit.cont,coef="SS8.vs.SS5",sort.by="p",n="Inf")
+list_of_datasets_symbiont <- list("SS3.vs.WT10" = limma.res1, "SS5.vs.WT10" = limma.res2, "SS8.vs.WT10" = limma.res3, "SS3.vs.SS5" = limma.res4, "SS8.vs.SS3" = limma.res5, "SS8.vs.SS5" = limma.res6)
+write.xlsx(list_of_datasets_symbiont, file=FileName, sep="\t", row.names=TRUE) 
+```
+<br><br>
+
+
   
 ## Exploratory analysis 1
 							 
 Filter genes from Venndiagram. Which are the genes that all selected strains have significantly expressed compared to the wild type?
-```{r DE-heatmap-plot}
+```{r DE-heatmap-plot-host}
 # Filter genes called as DE to control in any strain
 any_DE_genes_symbiont <- decideTests(gene_symbiont_fit, lfc=1)[,-1] %>% 
   as.data.frame() %>% 
@@ -585,22 +679,26 @@ symbiont_strains_3_5_8_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -
 symbiont_strain_3_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1) %>% .[order(.$Annotation),] 
 symbiont_strain_5_up <- filter(gene_symbiont_coef_sig, StrainStrain5 == 1)%>% .[order(.$Annotation),]
 symbiont_strain_8_up <- filter(gene_symbiont_coef_sig, StrainStrain8 == 1) %>% .[order(.$Annotation),] 
+symbiont_strain_8_up_all <- filter(gene_symbiont_coef_sig_all, StrainStrain8 == 1) %>% .[order(.$Annotation),]
 symbiont_strain_3_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1) %>% .[order(.$Annotation),]
 symbiont_strain_5_down <- filter(gene_symbiont_coef_sig, StrainStrain5 == -1) %>% .[order(.$Annotation),] 
 symbiont_strain_8_down <- filter(gene_symbiont_coef_sig, StrainStrain8 == -1) %>% .[order(.$Annotation),] 
+symbiont_strain_8_down_all <- filter(gene_symbiont_coef_sig_all, StrainStrain8 == -1) %>% .[order(.$Annotation),]
 #
-																							  
-																								 
 symbiont_strain_3_unique_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
 symbiont_strain_3_unique_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
 #
-																							  
-																								 
 symbiont_strain_5_unique_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
 symbiont_strain_5_unique_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
 #
 symbiont_strain_8_unique_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
 symbiont_strain_8_unique_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+symbiont_strain_8_unique_up_0.5 <- filter(gene_symbiont_coef_sig_0.5, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+symbiont_strain_8_unique_down_0.5 <- filter(gene_symbiont_coef_sig_0.5, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+symbiont_strain_8_unique_up_all <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+symbiont_strain_8_unique_down_all <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),]
 #
 symbiont_strain_3_8_up <- filter(gene_symbiont_coef_sig, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
 symbiont_strain_3_8_down <- filter(gene_symbiont_coef_sig, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),] 
@@ -633,6 +731,14 @@ write.xlsx(symbiont_strain_8_down, file="symbiont_DGE_expression_list.xlsx", she
 write.xlsx(symbiont_strain_8_unique_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_8_unique_up", append=TRUE, row.names=FALSE)
 write.xlsx(symbiont_strain_8_unique_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_8_unique_down", append=TRUE, row.names=FALSE)
 #
+write.xlsx(symbiont_strain_8_up_all, file="symbiont_DGE_expression_listNEW.xlsx", sheetName="symbiont_strain_8_up_all", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_8_down_all, file="symbiont_DGE_expression_listNEW.xlsx", sheetName="symbiont_strain_8_down_all", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_8_unique_up_0.5, file="symbiont_DGE_expression_listNEW.xlsx", sheetName="symbiont_strain_8_unique_up_0.5", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_8_unique_down_0.5, file="symbiont_DGE_expression_listNEW.xlsx", sheetName="symbiont_strain_8_unique_down_0.5", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_8_unique_up_all, file="symbiont_DGE_expression_listNEW.xlsx", sheetName="symbiont_strain_8_unique_up_all", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strain_8_unique_down_all, file="symbiont_DGE_expression_listNEW.xlsx", sheetName="symbiont_strain_8_unique_down_all", append=TRUE, row.names=FALSE)
+
+#
 write.xlsx(symbiont_strain_3_8_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_3_8_up", append=TRUE, row.names=FALSE)
 write.xlsx(symbiont_strain_3_8_down, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_3_8_down", append=TRUE, row.names=FALSE)
 write.xlsx(symbiont_strain_3_5_up, file="symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strain_3_5_up", append=TRUE, row.names=FALSE)
@@ -644,7 +750,6 @@ write.xlsx(symbiont_strain_5_8_down, file="symbiont_DGE_expression_list.xlsx", s
 <br><br>
 
 ## Exploratory analysis 2
-### PLOTTING NEEDS MORE WORK, 
 Get HEAT STRESS ASSOCIATED GENES FROM A PARTICULAR STRAIN
 Filter genes according to annotation. Which are heat stress related genes that are differentially expressed between the wild type and selected strains?
 ```{r}
@@ -658,7 +763,6 @@ head(topTable(gene_symbiont_fit, number = Inf, p.value = 0.05) %>%
   
   
 ## Plotting, plot by gene and by exon.
-### ISSUE MARKED IN GITHUB - Gene expression does not seem to match with exon expression. Exon plots dont seem to make sense??
 ```{r, fig.align='center'}
 
 ## Plot by gene, according to annotation
@@ -675,16 +779,21 @@ plot_symbiont_gene <- function(gene) {
 }
 
 # gene of choice
-#par(mar=c(5,6,3,1))
-#layout(matrix(c(1,2), 2, 2, byrow = TRUE))
-plot_symbiont_gene("SymbC1.scaffold2580.3.m1")
-plot_symbiont_gene("SymbC1.scaffold4974.6.m1")
-plot_symbiont_gene("SymbC1.scaffold170.11.m1")
-plot_symbiont_gene("SymbC1.scaffold6703.2.m1")
+par(mar=c(5,6,3,1))
+layout(matrix(c(1,2), 2, 2, byrow = TRUE))
+plot_symbiont_gene("SymbC1.scaffold7634.1.m1") # Superoxide dismutase, SS8 UNIQUE
+plot_symbiont_gene("SymbC1.scaffold10965.1.m1") # family chaperone, SS8 UNIQUE
+plot_symbiont_gene("SymbC1.scaffold213.10.m1") # oxidoreductase activity, SS8 UNIQUE
+
+#plot_symbiont_gene("SymbC1.scaffold10700.1.m1")
+#plot_symbiont_gene("SymbC1.scaffold4974.6.m1")
+#plot_symbiont_gene("SymbC1.scaffold170.11.m1")
+#plot_symbiont_gene("SymbC1.scaffold6703.2.m1")
+
 
 dev.off() 
 
-				
+
 plot_symbiont_gene_by_exon <- function(gene) {
   symbiont_v$E %>% 
     as.data.frame() %>% 
@@ -701,55 +810,23 @@ plot_symbiont_gene_by_exon <- function(gene) {
 }
 # exons of gene of choice
 
-par(mar=c(5,6,3,1))
-layout(matrix(c(1,2), 2, 2, byrow = TRUE))
-plot_symbiont_gene_by_exon("SymbC1.scaffold10700.1.m1")
+#par(mar=c(5,6,3,1))
+#layout(matrix(c(1,2), 2, 2, byrow = TRUE))
+plot_symbiont_gene_by_exon("SymbC1.scaffold7634.1.m1") # Superoxide dismutase, SS8 UNIQUE
+plot_symbiont_gene_by_exon("SymbC1.scaffold10965.1.m1") # family chaperone, SS8 UNIQUE UNIQUE
+plot_symbiont_gene_by_exon("SymbC1.scaffold213.10.m1") # oxidoreductase activity, SS8 UNIQUE
 #plot_symbiont_gene_by_exon("aten_0.1.m1.4452.m1")
 #plot_symbiont_gene_by_exon("aten_0.1.m1.24908.m1")
 #plot_symbiont_gene_by_exon("aten_0.1.m1.17022.m1")
 
-dev.off() 
+#dev.off() 
 
 ```
 
 ***
 <br><br><br>
 
-### GO-Stats in ErmineJ
-```{r, eval=FALSE}
 
-# write table for GO-stats
-# GeneExpressionProfiles-Symbiont.txt
-write.table(cbind(gene_symbiont_filtered2$genes[,-2], gene_symbiont_filtered2$counts), file="GeneExpressionProfiles-Symbiont.txt", row.names=F, sep="\t", quote=F)
-#
-write.table(cbind(gene_symbiont_filtered2$genes[,-2], gene_symbiont_v$E), file="GeneExpressionProfiles-Symbiont-lcpm.txt", row.names=F, sep="\t", quote=F)
-
-# GeneScores-Symbiont.txt 
-GeneScores_Symbiont <- topTable(gene_symbiont_fit, n=Inf) 
-write.table(cbind(GeneScores_Symbiont$gene,GeneScores_Symbiont$adj.P.Val), file="GeneScores-Symbiont.txt", sep="\t", row.names=F, quote=F, col.names =F)
-
-# GeneAnnotations-Symbiont.txt
-GeneScores_Symbiont2 <- topTable(gene_symbiont_fit, n=Inf) 
-write.table(cbind(GeneScores_Symbiont2$gene,GeneScores_Symbiont$Annotation),
-file="GeneAnnotations-Symbiont.txt", sep="\t", row.names=F, quote=F, col.names =F)
-
-# GeneExpressionProfiles-Host.txt
-write.table(cbind(gene_host_filtered2$genes[,-2], gene_host_filtered2$counts), file="GeneExpressionProfiles-Host.txt", row.names=F, sep="\t", quote=F)
-#
-write.table(cbind(gene_host_filtered2$genes[,-2], gene_host_v$E), file="GeneExpressionProfiles-Host-lcpm.txt", row.names=F, sep="\t", quote=F)
-
-# GeneScores-Host.txt 
-GeneScores_Host <- topTable(gene_host_fit, n=Inf) 
-write.table(cbind(GeneScores_Host$gene,GeneScores_Host$adj.P.Val), file="GeneScores-Host.txt", sep="\t", row.names=F, quote=F, col.names =F)
-
-# GeneAnnotations-Host.txt
-GeneScores_Host2 <- topTable(gene_host_fit, n=Inf) 
-write.table(cbind(GeneScores_Host2$gene,GeneScores_Host$Annotation), file="GeneAnnotations-Host.txt", sep="\t", row.names=F, quote=F, col.names =F)
-
-```
-***
-<br><br>
-  
   
   
   
@@ -780,7 +857,7 @@ write.table(cbind(GeneScores_Host2$gene,GeneScores_Host$Annotation), file="GeneA
     - MixOmics package, needs to be done
     
 * Exon expression plots dont seem to make sense. Summarised in "Issues" tab.
-    - Needs work at host, symbiont does work now, thanks for fixing. will have a look.
+    - DONE
 
 * WT does produce a lot of ROS... SS dont produce ROS. What can we find in the data to support this.. looking for SOD and other ROS scavengers. May be hypothesis testing by pulling out stress related genes? What was the code again for it please?
     - Code is there, needs to be done.
@@ -994,7 +1071,220 @@ heatmap.2(lcpm[i,], scale="row",
    
    
 
-```
 ***
 <br><br>
 
+
+### GO-Stats in ErmineJ
+CODE SILENCED
+```{r, eval=FALSE}
+
+# write table for GO-stats
+# GeneExpressionProfiles-Symbiont.txt
+write.table(cbind(gene_symbiont_filtered2$genes[,-2], gene_symbiont_filtered2$counts), file="GeneExpressionProfiles-Symbiont.txt", row.names=F, sep="\t", quote=F)
+#
+write.table(cbind(gene_symbiont_filtered2$genes[,-2], gene_symbiont_v$E), file="GeneExpressionProfiles-Symbiont-lcpm.txt", row.names=F, sep="\t", quote=F)
+
+# GeneScores-Symbiont.txt 
+GeneScores_Symbiont <- topTable(gene_symbiont_fit, n=Inf) 
+write.table(cbind(GeneScores_Symbiont$gene,GeneScores_Symbiont$adj.P.Val), file="GeneScores-Symbiont.txt", sep="\t", row.names=F, quote=F, col.names =F)
+
+# GeneAnnotations-Symbiont.txt
+GeneScores_Symbiont2 <- topTable(gene_symbiont_fit, n=Inf) 
+write.table(cbind(GeneScores_Symbiont2$gene,GeneScores_Symbiont$Annotation),
+file="GeneAnnotations-Symbiont.txt", sep="\t", row.names=F, quote=F, col.names =F)
+
+# GeneExpressionProfiles-Host.txt
+write.table(cbind(gene_host_filtered2$genes[,-2], gene_host_filtered2$counts), file="GeneExpressionProfiles-Host.txt", row.names=F, sep="\t", quote=F)
+#
+write.table(cbind(gene_host_filtered2$genes[,-2], gene_host_v$E), file="GeneExpressionProfiles-Host-lcpm.txt", row.names=F, sep="\t", quote=F)
+
+# GeneScores-Host.txt 
+GeneScores_Host <- topTable(gene_host_fit, n=Inf) 
+write.table(cbind(GeneScores_Host$gene,GeneScores_Host$adj.P.Val), file="GeneScores-Host.txt", sep="\t", row.names=F, quote=F, col.names =F)
+
+# GeneAnnotations-Host.txt
+GeneScores_Host2 <- topTable(gene_host_fit, n=Inf) 
+write.table(cbind(GeneScores_Host2$gene,GeneScores_Host$Annotation), file="GeneAnnotations-Host.txt", sep="\t", row.names=F, quote=F, col.names =F)
+
+```
+
+
+
+
+
+```{r, eval=FALSE, echo=FALSE}
+#
+symbiont_strains_3_5_8_up <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+
+symbiont_strains_3_5_8_down <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == -1, StrainStrain5 == -1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+lfc1_SS_3_up <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == 1) %>% .[order(.$Annotation),] 
+lfc1_SS_5_up <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain5 == 1)%>% .[order(.$Annotation),]
+lfc1_SS_8_up <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain8 == 1) %>% .[order(.$Annotation),] 
+lfc1_SS_3_down <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == -1) %>% .[order(.$Annotation),]
+lfc1_SS_5_down <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain5 == -1) %>% .[order(.$Annotation),] 
+lfc1_SS_8_down <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain8 == -1) %>% .[order(.$Annotation),] 
+#
+lfc1_SS_3_unique_up <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+lfc1_SS_3_unique_down <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+lfc1_SS_5_unique_up <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+lfc1_SS_5_unique_down <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+lfc1_SS_8_unique_up <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+lfc1_SS_8_unique_down <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+lfc1_SS_3_8_up <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+lfc1_SS_3_8_down <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),] 
+#
+lfc1_SS_3_5_up <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+lfc1_SS_3_5_down <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == -1, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+lfc1_SS_5_8_up <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+lfc1_SS_5_8_down <- filter(gene_symbiont_coef_sig_lfc1, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+library(xlsx)
+#install.packages("xlsx")
+write.xlsx(symbiont_strains_3_5_8_up, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strains_3_5_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strains_3_5_8_down, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strains_3_5_8_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(lfc1_SS_3_up, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_3_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_3_down, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_3_down", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_3_unique_up, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_3_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_3_unique_down, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_3_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(lfc1_SS_5_up, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_5_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_5_down, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_5_down", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_5_unique_up, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_5_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_5_unique_down, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_5_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(lfc1_SS_8_up, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_8_down, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_8_down", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_8_unique_up, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_8_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_8_unique_down, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_8_unique_down", append=TRUE, row.names=FALSE)
+#
+#
+write.xlsx(lfc1_SS_3_8_up, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_3_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_3_8_down, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_3_8_down", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_3_5_up, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_3_5_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_3_5_down, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_3_5_down", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_5_8_up, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_5_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc1_SS_5_8_down, file="lfc1_symbiont_DGE_expression_list.xlsx", sheetName="lfc1_SS_5_8_down", append=TRUE, row.names=FALSE)
+#
+#
+symbiont_strains_3_5_8_up <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+symbiont_strains_3_5_8_down <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == -1, StrainStrain5 == -1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+lfc0.5_SS_3_up <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == 1) %>% .[order(.$Annotation),] 
+lfc0.5_SS_5_up <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain5 == 1)%>% .[order(.$Annotation),]
+lfc0.5_SS_8_up <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain8 == 1) %>% .[order(.$Annotation),] 
+lfc0.5_SS_3_down <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == -1) %>% .[order(.$Annotation),]
+lfc0.5_SS_5_down <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain5 == -1) %>% .[order(.$Annotation),] 
+lfc0.5_SS_8_down <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain8 == -1) %>% .[order(.$Annotation),] 
+#
+lfc0.5_SS_3_unique_up <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+lfc0.5_SS_3_unique_down <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+lfc0.5_SS_5_unique_up <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+lfc0.5_SS_5_unique_down <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+lfc0.5_SS_8_unique_up <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+lfc0.5_SS_8_unique_down <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+lfc0.5_SS_3_8_up <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+lfc0.5_SS_3_8_down <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),] 
+#
+lfc0.5_SS_3_5_up <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+lfc0.5_SS_3_5_down <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == -1, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+lfc0.5_SS_5_8_up <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+lfc0.5_SS_5_8_down <- filter(gene_symbiont_coef_sig_lfc0.5, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+library(xlsx)
+#install.packages("xlsx")
+write.xlsx(symbiont_strains_3_5_8_up, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strains_3_5_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strains_3_5_8_down, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strains_3_5_8_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(lfc0.5_SS_3_up, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_3_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_3_down, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_3_down", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_3_unique_up, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_3_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_3_unique_down, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_3_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(lfc0.5_SS_5_up, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_5_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_5_down, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_5_down", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_5_unique_up, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_5_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_5_unique_down, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_5_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(lfc0.5_SS_8_up, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_8_down, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_8_down", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_8_unique_up, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_8_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_8_unique_down, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_8_unique_down", append=TRUE, row.names=FALSE)
+#
+#
+write.xlsx(lfc0.5_SS_3_8_up, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_3_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_3_8_down, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_3_8_down", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_3_5_up, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_3_5_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_3_5_down, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_3_5_down", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_5_8_up, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_5_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(lfc0.5_SS_5_8_down, file="lfc0.5_symbiont_DGE_expression_list.xlsx", sheetName="lfc0.5_SS_5_8_down", append=TRUE, row.names=FALSE)
+#
+#
+symbiont_strains_3_5_8_up <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+symbiont_strains_3_5_8_down <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == -1, StrainStrain5 == -1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+all_SS_3_up <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 1) %>% .[order(.$Annotation),] 
+all_SS_5_up <- filter(gene_symbiont_coef_sig_all, StrainStrain5 == 1)%>% .[order(.$Annotation),]
+all_SS_8_up <- filter(gene_symbiont_coef_sig_all, StrainStrain8 == 1) %>% .[order(.$Annotation),] 
+all_SS_3_down <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == -1) %>% .[order(.$Annotation),]
+all_SS_5_down <- filter(gene_symbiont_coef_sig_all, StrainStrain5 == -1) %>% .[order(.$Annotation),] 
+all_SS_8_down <- filter(gene_symbiont_coef_sig_all, StrainStrain8 == -1) %>% .[order(.$Annotation),] 
+#
+all_SS_3_unique_up <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+all_SS_3_unique_down <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+all_SS_5_unique_up <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+all_SS_5_unique_down <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+all_SS_8_unique_up <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+all_SS_8_unique_down <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 0, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+all_SS_3_8_up <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 1, StrainStrain5 == 0, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+all_SS_3_8_down <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == -1, StrainStrain5 == 0, StrainStrain8 == -1) %>% .[order(.$Annotation),] 
+#
+all_SS_3_5_up <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 1, StrainStrain5 == 1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+all_SS_3_5_down <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == -1, StrainStrain5 == -1, StrainStrain8 == 0) %>% .[order(.$Annotation),]
+#
+all_SS_5_8_up <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 0, StrainStrain5 == 1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+all_SS_5_8_down <- filter(gene_symbiont_coef_sig_all, StrainStrain3 == 0, StrainStrain5 == -1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+library(xlsx)
+#install.packages("xlsx")
+write.xlsx(symbiont_strains_3_5_8_up, file="all_symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strains_3_5_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(symbiont_strains_3_5_8_down, file="all_symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strains_3_5_8_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(all_SS_3_up, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_3_up", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_3_down, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_3_down", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_3_unique_up, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_3_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_3_unique_down, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_3_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(all_SS_5_up, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_5_up", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_5_down, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_5_down", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_5_unique_up, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_5_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_5_unique_down, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_5_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(all_SS_8_up, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_8_down, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_8_down", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_8_unique_up, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_8_unique_up", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_8_unique_down, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_8_unique_down", append=TRUE, row.names=FALSE)
+#
+#
+write.xlsx(all_SS_3_8_up, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_3_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_3_8_down, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_3_8_down", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_3_5_up, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_3_5_up", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_3_5_down, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_3_5_down", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_5_8_up, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_5_8_up", append=TRUE, row.names=FALSE)
+write.xlsx(all_SS_5_8_down, file="all_symbiont_DGE_expression_list.xlsx", sheetName="all_SS_5_8_down", append=TRUE, row.names=FALSE)
+
+
+```
