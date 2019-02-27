@@ -145,13 +145,6 @@ gene_host_coef_sig_lfc1 <- decideTests(gene_host_fit, lfc=1) %>% as.data.frame()
 
 gene_host_coef_sig_all <- decideTests(gene_host_fit) %>% as.data.frame() %>%  bind_cols(gene_host_fit$genes)
 
-gene_host_coef_sig_SS8_interc_lfc2 <- decideTests(gene_host_fit, lfc=2)[,-4] %>% as.data.frame() %>%  bind_cols(gene_host_fit$genes)
-
-gene_host_coef_sig_SS8_interc_lfc1 <- decideTests(gene_host_fit, lfc=1)[,-4] %>% as.data.frame() %>%  bind_cols(gene_host_fit$genes)
-
-gene_host_coef_sig_SS8_interc_all <- decideTests(gene_host_fit)[,-4] %>% as.data.frame() %>%  bind_cols(gene_host_fit$genes)
-
-
 #recreate venn diagram from prior work
 #par(mar=c(5,6,3,1))
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
@@ -168,12 +161,6 @@ decideTests(gene_host_fit, lfc=1)[,-1] %>%
             circle.col = c("darkred", "blue", "green4"))
 title("Venndiagram host. SS strains vs Wild type [lfc > 1]", line = 1)
 
-decideTests(gene_host_fit, lfc=1)[,-4] %>% 
-  vennDiagram(include=c("up","down"),
-            counts.col=c("brown3", "darkblue"),
-            circle.col = c("darkred", "blue", "green4"))
-title("Venndiagram host. SS8 strain vs all other [lfc > 1]", line = 1)
-
 #dev.off() 
 ```
 Fig. 3 Venndiagram showing genes that are significantly different expressed between the wild type and respective selected strains. For example: With lfc > 1 Strain 5 has 207 gene significantly upregulated and 16 genes downregulated compared to the wild type.
@@ -184,7 +171,7 @@ Fig. 3 Venndiagram showing genes that are significantly different expressed betw
 ```{r Make contrasts Host}
 
 # re-design model without intercept
-gene_host_v_NEW <- voom(gene_host_filtered2, design = model.matrix(~0 +Strain, data = gene_host_filtered2$samples), plot = T)
+gene_host_v_NEW <- voom(gene_host_filtered2, design = model.matrix(~0 + Strain, data = gene_host_filtered2$samples), plot = T)
 
 gene_host_fit_NEW <- lmFit(gene_host_v_NEW, design = model.matrix(~0 + Strain, data = gene_host_filtered2$samples)) 
 
@@ -193,33 +180,21 @@ design <- model.matrix(~0 + Strain, data = gene_host_filtered2$samples)
 colnames(design)
 
 ## CONTRAST COMPARING THE WT and SS TYPEs WITH EACH OTHER
-cont.matrix1 <- makeContrasts(SS3.vs.WT10 = StrainStrain3 - StrainStrain10, SS5.vs.WT10 = StrainStrain5 - StrainStrain10, SS8.vs.WT10 = StrainStrain8 - StrainStrain10, SS3.vs.SS5 = StrainStrain3 - StrainStrain5, SS8.vs.SS3 = StrainStrain8 - StrainStrain3, SS8.vs.SS5 = StrainStrain8 - StrainStrain5, levels=design)
-cont.matrix1
-
+cont.matrix1_host <- makeContrasts(SS8.vs.WT10 = StrainStrain8 - StrainStrain10, SS8.vs.SS3 = StrainStrain8 - StrainStrain3, SS8.vs.SS5 = StrainStrain8 - StrainStrain5, levels=design)
+cont.matrix1_host
 ## fit contrasts
-fit.cont <- contrasts.fit(gene_host_fit_NEW, cont.matrix1)
-fit.cont <- eBayes(fit.cont)
-## check it out
+fit.cont1host <- contrasts.fit(gene_host_fit_NEW, cont.matrix1_host) %>% eBayes()
 # fit.cont
-dim(fit.cont)
-summary(decideTests(fit.cont))
+# dim(fit.cont1host)
+summary(decideTests(fit.cont1host))
 # check with other intercept model that up and down regulated genes are still the same between both models - yes, nice..
 
-```
+decideTests(fit.cont1host) %>% 
+  vennDiagram(include=c("up","down"),
+            counts.col=c("brown3", "darkblue"),
+            circle.col = c("darkred", "blue", "green4"))
+title("Venndiagram host. SS8 strain vs all other strains [all genes]", line = 1)
 
-```{r Data Export Contrasts Host, eval=FALSE}
-library(openxlsx)
-SampleGroup<-"Host-NoIntercept"
-Title <- paste(SampleGroup,"DGE-Table")
-FileName <- paste(Title,".xlsx")
-limma.res1 <- topTable(fit.cont,coef="SS3.vs.WT10",sort.by="p",n="Inf")
-limma.res2 <- topTable(fit.cont,coef="SS5.vs.WT10",sort.by="p",n="Inf")
-limma.res3 <- topTable(fit.cont,coef="SS8.vs.WT10",sort.by="p",n="Inf")
-limma.res4 <- topTable(fit.cont,coef="SS3.vs.SS5",sort.by="p",n="Inf")
-limma.res5 <- topTable(fit.cont,coef="SS8.vs.SS3",sort.by="p",n="Inf")
-limma.res6 <- topTable(fit.cont,coef="SS8.vs.SS5",sort.by="p",n="Inf")
-list_of_datasets_host <- list("SS3.vs.WT10" = limma.res1, "SS5.vs.WT10" = limma.res2, "SS8.vs.WT10" = limma.res3, "SS3.vs.SS5" = limma.res4, "SS8.vs.SS3" = limma.res5, "SS8.vs.SS5" = limma.res6)
-write.xlsx(list_of_datasets_host, file=FileName, sep="\t", row.names=TRUE) 
 ```
 <br><br>
 
@@ -287,11 +262,9 @@ DE_calls <- any_DE_genes %>%
 
 cowplot::plot_grid(DE_calls, expression_heatmap + ylab(NULL), align = "v", rel_widths = c(1,5), axis = "tb")
 ```
-DATA EXPORT AT THE END OF CODE...
 <br><br>
 
 ## Exploratory analysis 2
-### PLOTTING NEEDS MORE WORK 
 Filter genes according to annotation. Which are heat stress related genes that are differentially expressed between the wild type and selected strains?
 ```{r}
 #filter based on gene host_annotations
@@ -325,6 +298,9 @@ layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 #plot_host_gene("aten_0.1.m1.446.m1")
 #plot_host_gene("aten_0.1.m1.4452.m1")
 plot_host_gene("aten_0.1.m1.24908.m1")
+
+plot_host_gene("aten_0.1.m1.31125.m1")
+
 #plot_host_gene("aten_0.1.m1.17022.m1")
 
 #dev.off() 
@@ -442,8 +418,6 @@ title(main="B. Example: Normalised data",ylab="Log-cpm")
 dev.off() 
 
 
-
-
 # check that data is still all matching up
 table(symbiont_samples$SampleName == colnames(gene_symbiont_filtered2))
 
@@ -487,12 +461,6 @@ gene_symbiont_coef_sig_lfc0.5 <- decideTests(gene_symbiont_fit, lfc=0.5) %>% as.
 
 gene_symbiont_coef_sig_all <- decideTests(gene_symbiont_fit) %>% as.data.frame() %>%  bind_cols(gene_symbiont_fit$genes)
 
-gene_symbiont_coef_sig_SS8_interc_lfc1 <- decideTests(gene_symbiont_fit, lfc=1)[,-4] %>% as.data.frame() %>%  bind_cols(gene_symbiont_fit$genes)
-
-gene_symbiont_coef_sig_SS8_interc_lfc0.5 <- decideTests(gene_symbiont_fit, lfc=0.5)[,-4] %>% as.data.frame() %>%  bind_cols(gene_symbiont_fit$genes)
-
-gene_symbiont_coef_sig_SS8_interc_all <- decideTests(gene_symbiont_fit)[,-4] %>% as.data.frame() %>%  bind_cols(gene_symbiont_fit$genes)
-
 #recreate venn diagram from prior work
 #par(mar=c(5,6,3,1))
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
@@ -509,60 +477,48 @@ decideTests(gene_symbiont_fit, lfc=0.5)[,-1] %>%
             circle.col = c("darkred", "blue", "green4"))
 title("Venndiagram symbiont. SS strains vs Wild type [lfc > 0.5]", line = 1)
 
-decideTests(gene_symbiont_fit)[,-4] %>% 
-  vennDiagram(include=c("up","down"),
-            counts.col=c("brown3", "darkblue"),
-            circle.col = c("darkred", "blue", "green4"))
-title("Venndiagram symbiont. SS8 strain vs all other strains [lfc > 0.5]", line = 1)
-
 #dev.off() 
 ```
 Fig. 3 Venndiagram showing genes that are significantly different expressed between the wild type and respective selected strains. For example: With lfc > 1 Strain 5 has 207 gene significantly upregulated and 16 genes downregulated compared to the wild type.
 <br><br>
   
 
-## Make additional contrasts to compare symbiont SS8 to other symbiont strains (SS3 and SS5).
+## Make additional contrasts to compare symbiont SS8 to other symbiont strains (SS3, SS5 and WT10).
 ```{r Make contrasts Symbiont}
 
 # re-design model without intercept
 gene_symbiont_v_NEW <- voom(gene_symbiont_filtered2, design = model.matrix(~0 +Strain, data = gene_symbiont_filtered2$samples), plot = T)
-
+#
 gene_symbiont_fit_NEW <- lmFit(gene_symbiont_v_NEW, design = model.matrix(~0 +Strain, data = gene_symbiont_filtered2$samples)) 
-
+#
 design <- model.matrix(~0 +Strain, data = gene_symbiont_filtered2$samples)
-
+#
 colnames(design)
-
+#
 ## CONTRAST COMPARING THE WT and SS TYPEs WITH EACH OTHER
-cont.matrix2 <- makeContrasts(SS3.vs.WT10 = StrainStrain3 - StrainStrain10, SS5.vs.WT10 = StrainStrain5 - StrainStrain10, SS8.vs.WT10 = StrainStrain8 - StrainStrain10, SS3.vs.SS5 = StrainStrain3 - StrainStrain5, SS8.vs.SS3 = StrainStrain8 - StrainStrain3, SS8.vs.SS5 = StrainStrain8 - StrainStrain5, levels=design)
-cont.matrix2
+cont.matrix_sym <- makeContrasts(SS8.vs.WT10 = StrainStrain8 - StrainStrain10, SS8.vs.SS3 = StrainStrain8 - StrainStrain3, SS8.vs.SS5 = StrainStrain8 - StrainStrain5, levels=design)
+cont.matrix_sym
 
 ## fit contrasts
-fit.cont <- contrasts.fit(gene_symbiont_fit_NEW, cont.matrix2)
-fit.cont <- eBayes(fit.cont)
-## check it out
+fit.cont1symbiont <- contrasts.fit(gene_symbiont_fit_NEW, cont.matrix_sym) %>% eBayes()
 # fit.cont
-dim(fit.cont)
-summary(decideTests(fit.cont))
-# check with other intercept model that up and down regulated genes are still the same between both models - yes, nice..
+# dim(fit.cont1symbiont)
+summary(decideTests(fit.cont1symbiont))
+
+
+decideTests(fit.cont1symbiont) %>% 
+  vennDiagram(include=c("up","down"),
+            counts.col=c("brown3", "darkblue"),
+            circle.col = c("darkred", "blue", "green4"))
+title("Venndiagram symbiont. SS8 strain vs all other strains [all genes]", line = 1)
+
 ```
 
-```{r Data Export Contrasts Symbiont, eval=FALSE}
-library(openxlsx)
-SampleGroup<-"Symbiont-NoIntercept"
-Title <- paste(SampleGroup,"DGE-Table")
-FileName <- paste(Title,".xlsx")
-limma.res1 <- topTable(fit.cont,coef="SS3.vs.WT10",sort.by="p",n="Inf")
-limma.res2 <- topTable(fit.cont,coef="SS5.vs.WT10",sort.by="p",n="Inf")
-limma.res3 <- topTable(fit.cont,coef="SS8.vs.WT10",sort.by="p",n="Inf")
-limma.res4 <- topTable(fit.cont,coef="SS3.vs.SS5",sort.by="p",n="Inf")
-limma.res5 <- topTable(fit.cont,coef="SS8.vs.SS3",sort.by="p",n="Inf")
-limma.res6 <- topTable(fit.cont,coef="SS8.vs.SS5",sort.by="p",n="Inf")
-list_of_datasets_symbiont <- list("SS3.vs.WT10" = limma.res1, "SS5.vs.WT10" = limma.res2, "SS8.vs.WT10" = limma.res3, "SS3.vs.SS5" = limma.res4, "SS8.vs.SS3" = limma.res5, "SS8.vs.SS5" = limma.res6)
-write.xlsx(list_of_datasets_symbiont, file=FileName, sep="\t", row.names=TRUE) 
+```{r DATA EXPORT Symbiont, eval=FALSE}
+symbiont_SS8_VS_all <- topTable(fit.cont1symbiont, n=Inf) %>% write.table(, file="symbiont_SS8_VS_all_rawTable.csv", sep="\t", quote=F)
+
 ```
 <br><br>
-
 
   
 ## Exploratory analysis 1
@@ -627,7 +583,6 @@ DE_calls_symbiont <- any_DE_genes_symbiont %>%
 
 cowplot::plot_grid(DE_calls_symbiont, expression_heatmap_symbiont + ylab(NULL), align = "v", rel_widths = c(1,5), axis = "tb")
 ```
-DATA EXPORT SEE END OF CODE...
 <br><br>
 
 ## Exploratory analysis 2
@@ -792,15 +747,17 @@ head(select_topsignf)
 # NOT WORKING
 # Extract genes of interest that are significantly different 
 # between SS8 and WT10, sort according to logvalues
+
 gene_host_counts2 <- host_annotations %>% bind_cols(gene_host_counts[,-1])
 design <- model.matrix(~Strain, data = gene_host_filtered2$samples)
 colnames(design) 
 cont.matrix <- makeContrasts(SS8.vs.WT10 = (Intercept) - StrainStrain8, levels=design)
+
 cont.matrix
 names(gene_host_fit)
 fit.cont <- contrasts.fit(gene_host_fit, cont.matrix)
 fit.cont <- eBayes(fit.cont)
-dim(fit.cont)
+dim(fit.cont1host)
 summa.fit <- decideTests(fit.cont)
 summary(summa.fit)
 SelectedGenesSignf <- topTable(fit.cont,coef="SS8.vs.WT10", number = Inf, p.value = 0.05,
