@@ -37,18 +37,22 @@ opts_chunk$set(tidy.opts=list(width.cutoff=40),tidy=TRUE)
 ```
 
 
+
+
 # __1 Host expression__
 ## Loading data
 
 Read in the host count matrix and convert to log2cpm
-``` {r host-data, warning=F, fig.align='center'}
+``` {r host-data, message=FALSE, warning=FALSE, fig.align='center'}
 host_counts <- read_tsv("data/MATRIX_Counts-FINAL-Host.txt")
 host_samples <- read_tsv("data/SampleInfo_Host-STAR.txt")
 host_annotations <- read_tsv("data/Aten_diamond_annot_20190117_1327.txt")
-host_exon_annnotations <- read_tsv("data/Host-Gene-Annotation.txt")
+#host_exon_annnotations <- read_tsv("data/Host-Gene-Annotation.txt")
+```
 
+```{r}
 # Exons
-host_DGE <- DGEList(host_counts[,-1], genes = host_counts[,1]%>% bind_cols(host_exon_annnotations), samples = host_samples )
+host_DGE <- DGEList(host_counts[,-1], genes = host_counts[,1], samples = host_samples)
 
 filt <- filterByExpr(host_DGE, design = model.matrix(~Strain, data = host_DGE$samples), min.count = 40)
 
@@ -56,8 +60,8 @@ host_filtered1 <- host_DGE[filt, , keep.lib.sizes = F]
 
 host_filtered2 <- calcNormFactors(host_filtered1)
 
-# run limma voom
 host_v <- voom(host_filtered2, design = model.matrix(~Strain, data = host_filtered2$samples), plot = F)
+
 ```
 <br><br>
 
@@ -77,215 +81,166 @@ gene_host_DGE <- DGEList(gene_host_counts[,-1], genes = gene_host_counts[,1]%>% 
 # check that annotation table and gene_host_DGE match.. needs to be all TRUE events. Two columns to match
 table((gene_host_DGE$genes == (host_annotations)))
 
-gene_host_filt <- filterByExpr(gene_host_DGE, design = model.matrix(~Strain, data = gene_host_DGE$samples), min.count = 40)
+gene_host_filt <- filterByExpr(gene_host_DGE, design = model.matrix(~0 + Strain, data = gene_host_DGE$samples), min.count = 40)
 
-gene_host_filtered1 <- gene_host_DGE[gene_host_filt, , keep.lib.sizes = F]
+gene_host_filtered1 <- gene_host_DGE[gene_host_filt, keep.lib.sizes = F]
 
 gene_host_filtered2 <- calcNormFactors(gene_host_filtered1)
 
+
 # Check filter cut off before and after
 par(mfrow=c(2,2))
-mean_log_cpm1 <- aveLogCPM(gene_host_DGE$counts)
+mean_log_cpm3 <- aveLogCPM(gene_host_DGE$counts)
 filter_threshold <- 0.5
-hist(mean_log_cpm1, breaks=200, ylim=c(0,2500)); abline(v=filter_threshold)
-qqnorm(mean_log_cpm1); abline(h=filter_threshold)
+hist(mean_log_cpm3, breaks=200, ylim=c(0,2500)); abline(v=filter_threshold)
+qqnorm(mean_log_cpm3); abline(h=filter_threshold)
 #
-mean_log_cpm2 <- aveLogCPM(gene_host_filtered1$counts)
+mean_log_cpm4 <- aveLogCPM(gene_host_filtered1$counts)
 filter_threshold <- 0.5
-hist(mean_log_cpm2, breaks=200, ylim=c(0,2500)); abline(v=filter_threshold)
-qqnorm(mean_log_cpm2); abline(h=filter_threshold)
+hist(mean_log_cpm4, breaks=200, ylim=c(0,2500)); abline(v=filter_threshold)
+qqnorm(mean_log_cpm4); abline(h=filter_threshold)
 
 # Check normalised and unnormalised data
 par(mfrow=c(1,2))
-host_lcpm1 <- cpm(gene_host_filtered1, log=TRUE)
-boxplot(host_lcpm1, las=2, main="")
+Host_lcpm1 <- cpm(gene_host_filtered1, log=TRUE)
+boxplot(Host_lcpm1, las=2, main="")
 title(main="A. Example: Unnormalised data",ylab="Log-cpm")
 #
 gene_host_filtered2$samples$norm.factors
-host_lcpm2 <- cpm(gene_host_filtered2, log=TRUE)
-boxplot(host_lcpm2, las=2, main="")
+Host_lcpm2 <- cpm(gene_host_filtered2, log=TRUE)
+boxplot(Host_lcpm2, las=2, main="")
 title(main="B. Example: Normalised data",ylab="Log-cpm")
 
 dev.off() 
 
 
-
-
 # check that data is still all matching up
 table(host_samples$SampleName == colnames(gene_host_filtered2))
 
-gene_host_v <- voom(gene_host_filtered2, design = model.matrix(~Strain, data = gene_host_filtered2$samples), plot = T)
+gene_host_v <- voom(gene_host_filtered2, design = model.matrix(~ 0 + Strain, data = gene_host_filtered2$samples), plot = T)
+
+#
+gene_host_fit_NoIntercept <- lmFit(gene_host_v, design = model.matrix(~0 +Strain, data = gene_host_filtered2$samples)) %>% eBayes()
+#
+plotSA(gene_host_fit_NoIntercept)
+
+design <- model.matrix(~0 +Strain, data = gene_host_filtered2$samples)
+#
+colnames(design)
+
 ```
 Fig. 1 Limma voom model.
 <br><br>
-
+  
 ## MDS to check overall expression differences
 ```{r, fig.align='center'}
 #par(mar=c(5,6,3,1))
 #layout(matrix(c(1,2), 2, 2, byrow = TRUE))
-par(mfrow=c(1,2))
-plotMDS(gene_host_v, main = "gene counts",labels = host_v$targets$FileName %>% str_remove("Host\\."), col = factor( host_v$targets$FileName %>% str_replace("Host\\.(.*?)\\..*", "\\1")) %>% as.integer())
+plotMDS(host_v, main = "exon counts", labels = host_v$targets$FileName %>% str_remove("host\\."), col = factor(host_v$targets$Strain %>% str_replace("host\\.(.*?)\\..*", "\\1")) %>% as.integer())
 #
-plotMDS(host_v, main = "exon counts", labels = host_v$targets$FileName %>% str_remove("Host\\."), col = factor( host_v$targets$FileName %>% str_replace("Host\\.(.*?)\\..*", "\\1")) %>% as.integer())
-
-dev.off() 
+plotMDS(gene_host_v, main = "gene counts",labels = gene_host_v$targets$FileName %>% str_remove("host\\."), col = factor(gene_host_v$targets$Strain %>% str_replace("host\\.(.*?)\\..*", "\\1")) %>% as.integer())
 
 ```
 Fig. 2 MDS plot. Left side - estimate according to whole gene counts. Right side - estimate according to exon expression.
-<br><br>
-
-## Fit expression model and check stats
-```{r, fig.align='center'}
-gene_host_fit <- lmFit(gene_host_v, design = model.matrix(~ Strain, data = gene_host_filtered2$samples)) %>% 
-  eBayes()
-
-# Summary
-summary(decideTests(gene_host_fit))
-
-#view fit stats
-topTable(gene_host_fit)
-
-#call genes as DE for different coefficients
-#Limiting to a 2X change or greater (1 log2 fold change)
-gene_host_coef_sig_lfc2 <- decideTests(gene_host_fit, lfc=2) %>% as.data.frame() %>%  bind_cols(gene_host_fit$genes)
-
-gene_host_coef_sig_lfc1 <- decideTests(gene_host_fit, lfc=1) %>% as.data.frame() %>%  bind_cols(gene_host_fit$genes)
-
-gene_host_coef_sig_all <- decideTests(gene_host_fit) %>% as.data.frame() %>%  bind_cols(gene_host_fit$genes)
-
-#recreate venn diagram from prior work
-#par(mar=c(5,6,3,1))
-#layout(matrix(c(1,2), 2, 2, byrow = TRUE))
-
-decideTests(gene_host_fit)[,-1] %>% 
-  vennDiagram(include=c("up","down"),
-            counts.col=c("brown3", "darkblue"),
-            circle.col = c("darkred", "blue", "green4"))
-title("Venndiagram host. SS strains vs Wild type [all genes]", line = 1)
-
-decideTests(gene_host_fit, lfc=1)[,-1] %>% 
-  vennDiagram(include=c("up","down"),
-            counts.col=c("brown3", "darkblue"),
-            circle.col = c("darkred", "blue", "green4"))
-title("Venndiagram host. SS strains vs Wild type [lfc > 1]", line = 1)
-
-#dev.off() 
-```
-Fig. 3 Venndiagram showing genes that are significantly different expressed between the wild type and respective selected strains. For example: With lfc > 1 Strain 5 has 207 gene significantly upregulated and 16 genes downregulated compared to the wild type.
-<br><br>
+<br><br>  
 
 
-## Make additional contrasts to compare host with SS8 to hosts with other symbiont strains (SS3 and SS5).
-```{r Make contrasts Host}
+## Contrasts 1
+### Make contrasts to compare host SS8 to other host strains (SS3, SS5 and WT10). 
+<br>
+1) What separates the SS8 from all other strains? General adaptations of SS8. 
+```{r Make contrasts - Host, fig.align='center'}
 
-# re-design model without intercept
-gene_host_v_NEW <- voom(gene_host_filtered2, design = model.matrix(~0 + Strain, data = gene_host_filtered2$samples), plot = T)
+## CONTRASTS
+## CONTRAST COMPARING THE SS8 to all other host types. 
+## What are the general adaptations of SS8?
+cont.matrix_host <- makeContrasts(SS8.vs.WT10 = StrainStrain8 - StrainStrain10, SS8.vs.SS3 = StrainStrain8 - StrainStrain3, SS8.vs.SS5 = StrainStrain8 - StrainStrain5, levels=design)
+cont.matrix_host
 
-gene_host_fit_NEW <- lmFit(gene_host_v_NEW, design = model.matrix(~0 + Strain, data = gene_host_filtered2$samples)) 
-
-design <- model.matrix(~0 + Strain, data = gene_host_filtered2$samples)
-
-colnames(design)
-
-## CONTRAST COMPARING THE SS8 to the other host types
-cont.matrix1_host <- makeContrasts(SS8.vs.WT10 = StrainStrain8 - StrainStrain10, SS8.vs.SS3 = StrainStrain8 - StrainStrain3, SS8.vs.SS5 = StrainStrain8 - StrainStrain5, levels=design)
-cont.matrix1_host
 ## fit contrasts
-fit.cont1host <- contrasts.fit(gene_host_fit_NEW, cont.matrix1_host) %>% eBayes()
+fit.cont1_host <- contrasts.fit(gene_host_fit_NoIntercept, cont.matrix_host) %>% eBayes()
 # fit.cont
 # dim(fit.cont1host)
-summary(decideTests(fit.cont1host))
-# check with other intercept model that up and down regulated genes are still the same between both models - yes, nice..
+summary(decideTests(fit.cont1_host))
 
-decideTests(fit.cont1host) %>% 
-  vennDiagram(include=c("up","down"),
+#view fit stats
+topTable(fit.cont1_host)
+
+genes_sign_SS8_Intercept <- decideTests(fit.cont1_host) %>% as.data.frame() %>%  bind_cols(fit.cont1_host$genes)
+
+vennDiagram(genes_sign_SS8_Intercept[,1:3],include=c("up","down"),
             counts.col=c("brown3", "darkblue"),
             circle.col = c("darkred", "blue", "green4"))
 title("Venndiagram host. SS8 strain vs all other strains [all genes]", line = 1)
 
 ```
+
+Fig. 3 Venndiagram showing genes that are significantly different expressed between the SS8 and respective other strains. The differentially expressed genes show the general difference of SS8 to all other strains, i.e. the specific adaptations of SS8.
+
+<br><br>
+
+DATA EXPORT at the end of the script..
+
 <br><br>
 
 
+## Contrasts 2
+<br>
+What makes SS8 unique compared to all other strains? Which are the genes that are uniquely DE by SS8? 
+```{r, fig.align='center'}
+## CONTRAST COMPARING THE SS8 to the other host types, here WT10
+cont.matrix2_host <- makeContrasts(WT10.vs.SS8 = StrainStrain10 - StrainStrain8, WT10.vs.SS3 = StrainStrain10 - StrainStrain3, WT10.vs.SS5 = StrainStrain10 - StrainStrain5, levels=design)
+cont.matrix2_host
+
+## fit contrasts
+fit.cont2_host <- contrasts.fit(gene_host_fit_NoIntercept, cont.matrix2_host) %>% eBayes()
+
+genes_sign_WT10_Intercept <- decideTests(fit.cont2_host) %>% as.data.frame() %>%  bind_cols(fit.cont2_host$genes)
+
+
+
+## CONTRAST COMPARING THE SS8 to the other host types, here SS3
+cont.matrix3_host <- makeContrasts(SS3.vs.SS8 = StrainStrain3 - StrainStrain8, SS3.vs.SS5 = StrainStrain3 - StrainStrain5, SS3.vs.WT10 = StrainStrain3 - StrainStrain10, levels=design)
+cont.matrix3_host
+
+## fit contrasts
+fit.cont3_host <- contrasts.fit(gene_host_fit_NoIntercept, cont.matrix3_host) %>% eBayes()
+
+genes_sign_SS3_Intercept <- decideTests(fit.cont3_host) %>% as.data.frame() %>%  bind_cols(fit.cont3_host$genes)
+
+
+
+## CONTRAST COMPARING THE SS8 to the other host types, here SS5
+cont.matrix4_host <- makeContrasts(SS5.vs.SS8 = StrainStrain5 - StrainStrain8, SS5.vs.SS3 = StrainStrain5 - StrainStrain3, SS5.vs.WT10 = StrainStrain5 - StrainStrain10, levels=design)
+cont.matrix4_host
+
+## fit contrasts
+fit.cont4_host <- contrasts.fit(gene_host_fit_NoIntercept, cont.matrix4_host) %>% eBayes()
+
+genes_sign_SS5_Intercept <- decideTests(fit.cont4_host) %>% as.data.frame() %>%  bind_cols(fit.cont4_host$genes)
+
+```
+
+<br><br>
 
 
 ## Exploratory analysis 1
-Filter genes from Venndiagram. Which are the genes that all selected strains have significantly expressed compared to the wild type?
-```{r DE-heatmap-plot-host, eval = FALSE}
+### Heat map of general gene expression.
+```{r DE-heatmap-plot-host, fig.align='center'}
 # Filter genes called as DE to control in any strain
-any_DE_genes <- decideTests(gene_host_fit, lfc=1)[,-1] %>% 
+
+any_DE_genes_host <- decideTests(fit.cont1_host, lfc=0.5) %>% 
   as.data.frame() %>% 
-  bind_cols(gene_host_fit$genes) %>% 
+  bind_cols(fit.cont2_host$genes) %>% 
   filter_if(~ is.numeric(.), any_vars(. != 0))
 
-#Separate out ones called as DE in *all* strains as well
-all_DE_genes <- any_DE_genes%>% 
-  filter_if(~ is.numeric(.), all_vars(. != 0))
-
-## Heatmap of DE genes
-# Normalise expression per-gene
-normalised_DE_gene_expression <- gene_host_v[gene_host_v$genes$gene %in% any_DE_genes$gene, ] %>% 
-  as.data.frame() %>% 
-  gather(SampleName, log2cpm, -gene, -Annotation) %>% 
-  left_join(host_samples) %>% 
-  group_by(gene) %>% 
-  mutate(scaled_log2cpm = scale(log2cpm)) %>% 
-  ungroup
-
-# Cluster to show patterns
-clustering <- normalised_DE_gene_expression %>% 
-  dplyr::select(gene, SampleName, scaled_log2cpm) %>% 
-  spread(SampleName, scaled_log2cpm) %>% 
-  dplyr::select(-gene) %>% 
-  cluster::agnes()
-
-# Plot it
-expression_heatmap <- normalised_DE_gene_expression %>% 
-  mutate(gene = factor(gene, levels = gene %>% unique %>% .[clustering$order] )) %>% 
-  ggplot(aes(x=SampleName, y = gene, fill = scaled_log2cpm)) +
-  geom_tile() +
-  scale_fill_gradient2(low = "#762a83", high = "#1b7837") + #Purple/green brewer palette
-  theme_bw() +
-  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
-  scale_x_discrete(labels = host_samples$Strain %>% str_remove("Strain")) +
-  xlab("Sample Strain")
-
-expression_heatmap
-
-
-#Can also include the actual DE calls
-DE_calls <- any_DE_genes %>% 
-  gather(Strain, DE_call, -gene, -Annotation) %>% 
-  mutate(
-    Strain = str_remove(Strain, "StrainStrain"), 
-    gene = factor(gene, levels = gene %>% unique %>% .[clustering$order] )
-    ) %>% 
-  ggplot(aes(x = Strain, y = gene, fill = as.factor(DE_call))) + 
-  geom_tile() + 
-  theme_minimal() +
-  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.position = "none") +
-  scale_x_discrete() +
-  xlab("DE Calls") + 
-  scale_fill_manual(values = c("blue", "white","red"))
-
-cowplot::plot_grid(DE_calls, expression_heatmap + ylab(NULL), align = "v", rel_widths = c(1,5), axis = "tb")
-
-
-
-#####
-# Filter genes called as DE in SS8 compared to all other strains - host.
-any_DE_genes_host <- decideTests(fit.cont1host, lfc=2) %>% 
-  as.data.frame() %>% 
-  bind_cols(fit.cont1host$genes) %>% 
-  filter_if(~ is.numeric(.), any_vars(. != 0))
-
-#Separate out ones called as DE in *all* strains as well
+# Separate out ones called as DE in *all* strains as well
 all_DE_genes_host <- any_DE_genes_host%>% 
   filter_if(~ is.numeric(.), all_vars(. != 0))
 
 ## Heatmap of DE genes
 # Normalise expression per-gene
-normalised_DE_gene_expression_host <- gene_host_v_NEW[gene_host_v_NEW$genes$gene %in% any_DE_genes_host$gene, ] %>% 
+normalised_DE_gene_expression_host <- gene_host_v[gene_host_v$genes$gene %in% all_DE_genes_host$gene, ] %>% 
   as.data.frame() %>% 
   gather(SampleName, log2cpm, -gene, -Annotation) %>% 
   left_join(host_samples) %>% 
@@ -293,6 +248,7 @@ normalised_DE_gene_expression_host <- gene_host_v_NEW[gene_host_v_NEW$genes$gene
   mutate(scaled_log2cpm = scale(log2cpm)) %>% 
   ungroup
 
+#
 # Cluster to show patterns
 clustering_host <- normalised_DE_gene_expression_host %>% 
   dplyr::select(gene, SampleName, scaled_log2cpm) %>% 
@@ -300,17 +256,19 @@ clustering_host <- normalised_DE_gene_expression_host %>%
   dplyr::select(-gene) %>% 
   cluster::agnes()
 
+#
 # Plot it
 expression_heatmap_host <- normalised_DE_gene_expression_host %>% 
   mutate(gene = factor(gene, levels = gene %>% unique %>% .[clustering_host$order] )) %>% 
   ggplot(aes(x=SampleName, y = gene, fill = scaled_log2cpm)) +
   geom_tile() +
-  scale_fill_gradient2(low = "#762a83", high = "#1b7837") + #Purple/green brewer palette
+  scale_fill_gradient2(low = "#0073ff", high = "#ff8c00") +
   theme_bw() +
-  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
+  #theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) + #Text
   scale_x_discrete(labels = host_samples$Strain %>% str_remove("Strain")) +
   xlab("Sample Strain")
-
+#
 expression_heatmap_host
 
 
@@ -328,25 +286,150 @@ DE_calls_host <- any_DE_genes_host %>%
   scale_x_discrete() +
   xlab("DE Calls") + 
   scale_fill_manual(values = c("blue", "white","red"))
-
+#
 cowplot::plot_grid(DE_calls_host, expression_heatmap_host + ylab(NULL), align = "v", rel_widths = c(1,5), axis = "tb")
 
+
 ```
 <br><br>
+
+
 
 ## Exploratory analysis 2
+### Hypothesis testing
+<br>
 Filter genes according to annotation. Which are heat stress related genes that are differentially expressed between the wild type and selected strains?
-```{r}
-#filter based on gene host_annotations
-head(topTable(gene_host_fit, number = Inf, p.value = 0.05) %>% 
-  filter(Annotation %>% str_detect("[H|h]eat|[G|g]lutathione|[C|c]haperone|[D|d]ismutase|[P|p]eroxidase")))
+```{r, fig.align='center'}
+## Filter based on gene host_annotations
+
+# Heat stress associated genes
+fit.cont1host_heat <- topTable(fit.cont1_host, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[H|h]eat|[S|s]uperoxide|[G|g]lutathione|[C|c]haperone|[P|p]eroxidase|[H|h]sp"))
+fit.cont1host_heat
+
+
+# Photosynthesis associated genes
+fit.cont2host_photo <- topTable(fit.cont1_host, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[R|r]ibulose|[P|p]hoto|[F|f]ucox|[C|c]aroteno"))
+fit.cont2host_photo
+
+
+# Heat map of Top significant genes
+fit.cont1host_TopSign <- topTable(fit.cont1_host, number = 100)
+
+
+
+
+####
+# Data feed for heat map, change as required..
+heatmap.data <- fit.cont1host_TopSign
+#
+
+normalised_DE_gene_expression_host <- gene_host_v[gene_host_v$genes$gene %in% heatmap.data$gene, ] %>% 
+  as.data.frame() %>% 
+  gather(SampleName, log2cpm, -gene, -Annotation) %>% 
+  left_join(host_samples) %>% 
+  group_by(gene) %>%
+  mutate(scaled_log2cpm = scale(log2cpm)) %>% 
+  ungroup
+#
+# Cluster to show patterns
+clustering_host <- normalised_DE_gene_expression_host %>% 
+  dplyr::select(gene, SampleName, scaled_log2cpm) %>% 
+  spread(SampleName, scaled_log2cpm) %>% 
+  dplyr::select(-gene) %>% 
+  cluster::agnes()
+#
+# Plot it
+expression_heatmap_host <- normalised_DE_gene_expression_host %>% 
+  mutate(gene = factor(gene, levels = gene %>% unique %>% .[clustering_host$order] )) %>% 
+  ggplot(aes(x=SampleName, y = gene, fill = scaled_log2cpm)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "#0073ff", high = "#ff8c00") +
+  theme_bw() +
+  #theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) + # With Text
+  scale_x_discrete(labels = host_samples$Strain %>% str_remove("Strain")) +
+  xlab("Sample Strain")
+#
+expression_heatmap_host
+
 
 ```
 <br><br>
+  
+
+## Exploratory analysis 3
+### Most variable genes across samples
+What are the most variable genes across samples?
+```{r, message=FALSE, warning=FALSE, error=FALSE, fig.align='center'}
+# Packages
+library(limma)
+library(edgeR)
+library(Glimma)
+library(gplots)
+library(org.Mm.eg.db)
+library(RColorBrewer)
+library(BiasedUrn)
+library(openxlsx)
+library(vegan)
+library(rgl)
+library(ape)
+library(openxlsx)
+library(ggplot2)
 
 
+# Heat map of most variable genes across samples
+# Take count matrix
+heat.map.data <- DGEList(gene_host_filtered2$counts, samples = host_samples$Strain)
+# Convert to cpm
+cpm.heat <- cpm(heat.map.data, log = TRUE)
+# calculate variance across gene rows
+var_genes <- apply(cpm.heat, MARGIN = 1, FUN = var)
+head(var_genes)
+#
+## Select number of genes to display and sort in a decreasing order
+select_var <- names(sort(var_genes, decreasing = TRUE)) [1:500]
+names(head(sort(select_var, decreasing = TRUE)))
+head(select_var)
+## take subsection with high logCPM
+highly_variable_lcpm <- cpm.heat[select_var, ]
+dim(highly_variable_lcpm)
+normalised_DE_gene_expression_host <- highly_variable_lcpm
 
-## Plotting, by gene and by exon.
+mypalette <- brewer.pal(11, "RdYlBu")
+morecols <- colorRampPalette(mypalette)
+col.cell <- c("purple", "orange")[host_samples$CellType]
+col.Strain <- c("blue", "red", "dark green")[host_samples$Strain]
+column_labels <- paste(host_samples$CellType, host_samples$Strain, sep = ".")
+#column_labels <- paste(host_samples$Strain)
+row_labels <- paste(gene_host_filtered2$genes)
+
+heatmap.2(
+  highly_variable_lcpm,
+  #Rowv = FALSE,
+  #Colv = FALSE,
+  main = "Top 500 most variable genes across samples",
+  ColSideColors = col.Strain,
+  col = rev(morecols(50)),
+  keysize = 2,
+  key.par=list(mgp=c(1, 0.5, 0), mar=c(5, 2, 3, 1)),
+  #lmat = lmat, 
+  #lmat=rbind(c(0, 4, 2), c(0, 1, 3)), lhei=c(2.5, 10), lwid=c(1, 10, 1),
+  trace = "none",
+  scale = "row",
+  labCol = column_labels,
+  #offsetCol = 0.5,
+  ## fix stuff that falls off the image with the following line
+  margins = c(8,2),
+  ## remove junk on side
+  labRow = ""
+)
+
+```
+
+  
+
+  
+## Plotting, plot by gene and by exon.
 ```{r, fig.align='center'}
 
 ## Plot by gene, according to annotation
@@ -365,26 +448,22 @@ plot_host_gene <- function(gene) {
 # gene of choice
 par(mar=c(5,6,3,1))
 layout(matrix(c(1,2), 2, 2, byrow = TRUE))
+
 #plot_host_gene("aten_0.1.m1.446.m1")
 #plot_host_gene("aten_0.1.m1.4452.m1")
 plot_host_gene("aten_0.1.m1.24908.m1")
-
 plot_host_gene("aten_0.1.m1.31125.m1")
-
 #plot_host_gene("aten_0.1.m1.17022.m1")
 
-#dev.off() 
+dev.off() 
 
-#plot_host_gene("aten_0.1.m1.10016.m1")
-#plot_host_gene("heat shock 70")
-#plot_host_gene("small heat shock")
-#plot_host_gene("Glutathione S-transferase 1")
-#plot_host_gene("molecular chaperone")
 
-## Plot by exon
+
+
+## Plot by exon, according to annotation
 plot_host_gene_by_exon <- function(gene) {
   host_v$E %>% 
-    as.data.frame() %>%
+    as.data.frame() %>% 
     filter(str_detect(host_v$genes$EntrezGeneID, gene)) %>% 
     mutate(exon = host_v$genes$EntrezGeneID[str_detect(host_v$genes$EntrezGeneID, gene)]) %>% 
     gather(sample, expn, -exon) %>% 
@@ -396,20 +475,105 @@ plot_host_gene_by_exon <- function(gene) {
     facet_wrap(~factor(exon, levels = stringr::str_sort(unique(exon), numeric = T))) +
     theme(legend.position = "none")
 }
+
+
 # exons of gene of choice
-par(mar=c(5,6,3,1))
-layout(matrix(c(1,2), 2, 2, byrow = TRUE))
+#par(mar=c(5,6,3,1))
+#layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 #plot_host_gene_by_exon("aten_0.1.m1.446.m1")
 #plot_host_gene_by_exon("aten_0.1.m1.4452.m1")
 plot_host_gene_by_exon("aten_0.1.m1.24908.m1")
 #plot_host_gene_by_exon("aten_0.1.m1.17022.m1")
 
-#dev.off() 
+
+dev.off() 
+
 ```
 
 ***
-<br><br>
+<br><br><br>
 
+
+
+## Data export host
+code silenced
+```{r, eval=FALSE}
+
+# Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
+host_SS8_intercept_VS_all <- topTable(fit.cont1host, n=Inf) %>% write.table(, file="host_SS8_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+
+# Specific pairwise comparisons. What separates SS8 from respective strains?
+library(openxlsx)
+SampleGroup<-"Pairwise-Host-SS8_VS_respec_strains"
+Title <- paste(SampleGroup,"DGE-Table")
+FileName <- paste(Title,".xlsx")
+limma.resA <- topTable(fit.cont1host,coef="SS8.vs.WT10",sort.by="p",n="Inf")
+limma.resB <- topTable(fit.cont1host,coef="SS8.vs.SS3",sort.by="p",n="Inf")
+limma.resC <- topTable(fit.cont1host,coef="SS8.vs.SS3",sort.by="p",n="Inf")
+list_of_datasets_host <- list("SS8.vs.WT10" = limma.resA, "SS8.vs.SS3" = limma.resB, "SS8.vs.SS5" = limma.resC)
+write.xlsx(list_of_datasets_host, file=FileName, sep="\t", row.names=TRUE)
+
+
+
+# Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
+host_WT10_intercept_VS_all <- topTable(fit.cont2host, n=Inf) %>% write.table(, file="host_WT10_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+
+# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
+host_strains_8_up_VS_WT10 <- filter(genes_sign_WT10_Intercept, StrainStrain3 == 0 | StrainStrain3 == -1, StrainStrain5 == 0 | StrainStrain5 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+#
+host_strains_8_down_VS_WT10 <- filter(genes_sign_WT10_Intercept, StrainStrain3 == 0 | StrainStrain3 == 1, StrainStrain5 == 0 | StrainStrain5 == 1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+host_strains_8_ALL_VS_WT10 <- filter(genes_sign_WT10_Intercept, StrainStrain8 == 1 | StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+write.xlsx(host_strains_8_up_VS_WT10, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_WT10_unique_up", append=TRUE, row.names=FALSE)
+#
+write.xlsx(host_strains_8_down_VS_WT10, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_WT10_unique_down", append=TRUE, row.names=FALSE)  
+#
+write.xlsx(host_strains_8_ALL_VS_WT10, file="SS8_host_DGE_expression_list.xlsx", sheetName="host_strains_8_ALL_VS_WT10", append=TRUE, row.names=FALSE) 
+
+
+
+
+
+# Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
+host_SS3_intercept_VS_all <- topTable(fit.cont3host, n=Inf) %>% write.table(, file="host_SS3_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+
+host_strains_8_up_VS_SS3 <- filter(genes_sign_SS3_Intercept, StrainStrain10 == 0 | StrainStrain10 == -1, StrainStrain5 == 0 | StrainStrain5 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+#
+host_strains_8_down_VS_SS3 <- filter(genes_sign_SS3_Intercept, StrainStrain10 == 0 | StrainStrain10 == 1, StrainStrain5 == 0 | StrainStrain5 == 1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+host_strains_8_ALL_VS_SS3 <- filter(genes_sign_SS3_Intercept, StrainStrain8 == 1 | StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+write.xlsx(host_strains_8_up_VS_SS3, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS3_unique_up", append=TRUE, row.names=FALSE)
+#
+write.xlsx(host_strains_8_down_VS_SS3, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS3_unique_down", append=TRUE, row.names=FALSE)  
+#
+write.xlsx(host_strains_8_ALL_VS_SS3, file="SS8_host_DGE_expression_list.xlsx", sheetName="host_strains_8_ALL_VS_SS3", append=TRUE, row.names=FALSE)  
+
+
+
+
+# Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
+host_SS5_intercept_VS_all <- topTable(fit.cont4host, n=Inf) %>% write.table(, file="host_SS5_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+
+host_strains_8_up_VS_SS5 <- filter(genes_sign_SS5_Intercept, StrainStrain10 == 0 | StrainStrain10 == -1, StrainStrain3 == 0 | StrainStrain3 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+#
+host_strains_8_up_VS_SS5 <- filter(genes_sign_SS5_Intercept, StrainStrain10 == 0 | StrainStrain10 == -1, StrainStrain3 == 0 | StrainStrain3 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+#
+host_strains_8_ALL_VS_SS5 <- filter(genes_sign_SS5_Intercept, StrainStrain8 == 1 | StrainStrain8 == -1) %>% .[order(.$Annotation),]
+#
+write.xlsx(host_strains_8_up_VS_SS5, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS5_unique_up", append=TRUE, row.names=FALSE)
+#
+write.xlsx(host_strains_8_down_VS_SS5, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS5_unique_down", append=TRUE, row.names=FALSE)
+#
+write.xlsx(host_strains_8_ALL_VS_SS5, file="SS8_host_DGE_expression_list.xlsx", sheetName="host_strains_8_ALL_VS_SS5", append=TRUE, row.names=FALSE)
+
+```
+ 
+<br>
+<br>
+<br>
+  
 
 
 
@@ -686,6 +850,10 @@ fit.cont2symbiont_photo <- topTable(fit.cont1_symbiont, number = Inf, p.value = 
 fit.cont2symbiont_photo
 
 
+# Photosynthesis associated genes
+fit.cont2symbiont_ammonium <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[A|a]mmonium"))
+fit.cont2symbiont_ammonium
+
 # Heat map of Top significant genes
 fit.cont1symbiont_TopSign <- topTable(fit.cont1_symbiont, number = 100)
 
@@ -694,7 +862,7 @@ fit.cont1symbiont_TopSign <- topTable(fit.cont1_symbiont, number = 100)
 
 ####
 # Data feed for heat map, change as required..
-heatmap.data <- fit.cont1symbiont_TopSign
+heatmap.data <- fit.cont2symbiont_ammonium
 #
 
 normalised_DE_gene_expression_symbiont <- gene_symbiont_v[gene_symbiont_v$genes$gene %in% heatmap.data$gene, ] %>% 
@@ -877,7 +1045,7 @@ dev.off()
 
 
 
-## Data export
+## Data export symbiont
 code silenced
 ```{r, eval=FALSE}
 
@@ -972,7 +1140,7 @@ write.xlsx(symbiont_strains_8_ALL_VS_SS5, file="SS8_symbiont_DGE_expression_list
 * Symbiont/host interactions
     - MixOmics package, needs to be done
     
-* SNP analyhsis
+* SNP analysis
 
 * Different copies of genes used, alignment and cmparison
 
@@ -1057,6 +1225,10 @@ dev.off()
 
 
 
+
+
+
+
 ## MDS Statistics with Adonis - Host
 Test Code - MDS stats Adonis
 ```{r, fig.align='center'}
@@ -1086,36 +1258,46 @@ library(ggplot2)
 ## MDS PLOT FROM ANY MATRIX
 ## MDS PLOT FROM ANY MATRIX
 
-# head(gene_host_filtered2$counts)
-# logcounts <- gene_host_filtered2$counts
 
-head(gene_host_v$E)
-logcounts <- gene_host_v$E
-head(logcounts)
+# DIFFERENT INPUT - USE logCPM on counts before voom
+#head(gene_host_filtered1$counts)
 #head(logcpmtmm)
+#logcounts <- gene_host_filtered1$counts
+  
+#head(gene_host_filtered2$counts)
+#logcounts <- gene_host_filtered2$counts
+
+myCPM_host <- cpm(gene_host_filtered2$counts, log = TRUE)
+#head(myCPM_host)
+logcounts_host <- myCPM_host
+
+#head(gene_host_v$E)
+#logcounts <- gene_host_v$E
+#head(logcounts)
+
 
 #
 # Make Factors
 CellType=as.character(host_samples$CellType)
 Strain=as.character(host_samples$Strain)
-CellType
-Strain
+#CellType
+#Strain
 conditions=data.frame(cbind(CellType,Strain))
-conditions
+#conditions
 #
-
+#
 # Calculate distances etc..
-dds.pcoa3=pcoa(vegdist(t(logcounts),method="euclidean")/1000)
+dds.pcoa3=pcoa(vegdist(t(logcounts_host),method="euclidean")/1000)
 # export values
 scores3=dds.pcoa3$vectors
 #
-head(scores3)
-
-
+#head(scores3)
+#
+#
 SampleGroup<-"Host-STAR"
 #SampleGroup<-"Symb-STAR"
 time<-format(Sys.time(),"%d-%m-%Y")
-
+#
 Title <- paste(SampleGroup,"MDS-logcounts-euclidean")
 FileName <- paste(Title,time,".jpg")
 jpeg(file=FileName, width = 2020, height = 1080, res = 200)
@@ -1161,19 +1343,22 @@ dev.off()
 Title <- paste(SampleGroup,"Adonis")
 FileName <- paste("5-",Title,time,".txt")
 #
-ad=adonis(t(logcounts)~CellType+Strain, permutations = 999, data=conditions,method="euclidean")
-ad 
-capture.output(ad,file=FileName)
+ad_host=adonis(t(logcounts_host)~CellType+Strain, permutations = 999, data=conditions,method="euclidean")
+ad_host 
+capture.output(ad_host,file=FileName)
 #
 Title <- paste(SampleGroup,"TukeyHSD")
 FileName <- paste("5-",Title,time,".txt")
-ad=adonis(t(logcounts)~Strain,data=conditions,method="euclidean")
-ad
+ad_host=adonis(t(logcounts_host)~Strain,data=conditions,method="euclidean")
+ad_host
 pco1=scores3[,1]
 TukeyHSD(aov(pco1~Strain))
 capture.output(TukeyHSD(aov(pco1~Strain)),file=FileName)
 
 ```
+
+
+
 
 
 
@@ -1207,37 +1392,45 @@ library(ggplot2)
 ## MDS PLOT FROM ANY MATRIX
 ## MDS PLOT FROM ANY MATRIX
 
-# head(gene_symbiont_filtered2$counts)
-# logcounts <- gene_symbiont_filtered2$counts
-
-head(gene_symbiont_v$E)
-logcounts <- gene_symbiont_v$E
-head(logcounts)
+# DIFFERENT INPUT - USE logCPM on counts before voom
+#head(gene_symbiont_filtered1$counts)
 #head(logcpmtmm)
+#logcounts <- gene_symbiont_filtered1$counts
+  
+#head(gene_symbiont_filtered2$counts)
+#logcounts <- gene_symbiont_filtered2$counts
+
+myCPM_symbiont <- cpm(gene_symbiont_filtered2$counts, log = TRUE)
+#head(myCPM_symbiont)
+logcounts_symbiont <- myCPM_symbiont
+
+#head(gene_symbiont_v$E)
+#logcounts <- gene_symbiont_v$E
+#head(logcounts)
+
 
 #
 # Make Factors
 CellType=as.character(symbiont_samples$CellType)
 Strain=as.character(symbiont_samples$Strain)
-CellType
-Strain
+#CellType
+#Strain
 conditions=data.frame(cbind(CellType,Strain))
-conditions
+#conditions
 #
-
 # Calculate distances etc..
-dds.pcoa3=pcoa(vegdist(t(logcounts),method="euclidean")/1000)
+dds.pcoa3=pcoa(vegdist(t(logcounts_symbiont),method="euclidean")/1000)
 # export values
 scores3=dds.pcoa3$vectors
 #
-head(scores3)
-
-
+# head(scores3)
+#
+#
 #SampleGroup<-"Host-STAR"
 SampleGroup<-"Symb-STAR"
 time<-format(Sys.time(),"%d-%m-%Y")
-
-Title <- paste(SampleGroup,"MDS-logcounts-euclidean")
+#
+Title <- paste(SampleGroup,"MDS-logcounts-euclidean-logCPM")
 FileName <- paste(Title,time,".jpg")
 jpeg(file=FileName, width = 2020, height = 1080, res = 200)
 par(mfrow=c(1,2))
@@ -1282,14 +1475,14 @@ dev.off()
 Title <- paste(SampleGroup,"Adonis")
 FileName <- paste("5-",Title,time,".txt")
 #
-ad=adonis(t(logcounts)~CellType+Strain, permutations = 999, data=conditions,method="euclidean")
-ad 
-capture.output(ad,file=FileName)
+ad_symbiont=adonis(t(logcounts_symbiont)~CellType+Strain, permutations = 999, data=conditions,method="euclidean")
+ad_symbiont 
+capture.output(ad_symbiont,file=FileName)
 #
 Title <- paste(SampleGroup,"TukeyHSD")
 FileName <- paste("5-",Title,time,".txt")
-ad=adonis(t(logcounts)~Strain,data=conditions,method="euclidean")
-ad
+ad_symbiont=adonis(t(logcounts_symbiont)~Strain,data=conditions,method="euclidean")
+ad_symbiont
 pco1=scores3[,1]
 TukeyHSD(aov(pco1~Strain))
 capture.output(TukeyHSD(aov(pco1~Strain)),file=FileName)
