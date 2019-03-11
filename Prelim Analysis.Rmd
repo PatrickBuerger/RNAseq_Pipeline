@@ -35,7 +35,7 @@ require(knitr)
 # Set so that long lines in R will be wrapped:
 opts_chunk$set(tidy.opts=list(width.cutoff=40),tidy=TRUE)
 ```
-
+<br><br>
 
 
 
@@ -166,7 +166,7 @@ summary(decideTests(fit.cont1_host))
 #view fit stats
 topTable(fit.cont1_host)
 
-genes_sign_SS8_Intercept <- decideTests(fit.cont1_host) %>% as.data.frame() %>%  bind_cols(fit.cont1_host$genes)
+genes_sign_SS8_Intercept_host <- decideTests(fit.cont1_host) %>% as.data.frame() %>%  bind_cols(fit.cont1_host$genes)
 
 vennDiagram(genes_sign_SS8_Intercept[,1:3],include=c("up","down"),
             counts.col=c("brown3", "darkblue"),
@@ -195,7 +195,7 @@ cont.matrix2_host
 ## fit contrasts
 fit.cont2_host <- contrasts.fit(gene_host_fit_NoIntercept, cont.matrix2_host) %>% eBayes()
 
-genes_sign_WT10_Intercept <- decideTests(fit.cont2_host) %>% as.data.frame() %>%  bind_cols(fit.cont2_host$genes)
+genes_sign_WT10_Intercept_host <- decideTests(fit.cont2_host) %>% as.data.frame() %>%  bind_cols(fit.cont2_host$genes)
 
 
 
@@ -206,7 +206,7 @@ cont.matrix3_host
 ## fit contrasts
 fit.cont3_host <- contrasts.fit(gene_host_fit_NoIntercept, cont.matrix3_host) %>% eBayes()
 
-genes_sign_SS3_Intercept <- decideTests(fit.cont3_host) %>% as.data.frame() %>%  bind_cols(fit.cont3_host$genes)
+genes_sign_SS3_Intercept_host <- decideTests(fit.cont3_host) %>% as.data.frame() %>%  bind_cols(fit.cont3_host$genes)
 
 
 
@@ -217,7 +217,7 @@ cont.matrix4_host
 ## fit contrasts
 fit.cont4_host <- contrasts.fit(gene_host_fit_NoIntercept, cont.matrix4_host) %>% eBayes()
 
-genes_sign_SS5_Intercept <- decideTests(fit.cont4_host) %>% as.data.frame() %>%  bind_cols(fit.cont4_host$genes)
+genes_sign_SS5_Intercept_host <- decideTests(fit.cont4_host) %>% as.data.frame() %>%  bind_cols(fit.cont4_host$genes)
 
 ```
 
@@ -229,7 +229,7 @@ genes_sign_SS5_Intercept <- decideTests(fit.cont4_host) %>% as.data.frame() %>% 
 ```{r DE-heatmap-plot-host, fig.align='center'}
 # Filter genes called as DE to control in any strain
 
-any_DE_genes_host <- decideTests(fit.cont1_host, lfc=0.5) %>% 
+any_DE_genes_host <- decideTests(fit.cont1_host, lfc=1) %>% 
   as.data.frame() %>% 
   bind_cols(fit.cont2_host$genes) %>% 
   filter_if(~ is.numeric(.), any_vars(. != 0))
@@ -308,8 +308,8 @@ fit.cont1host_heat
 
 
 # Photosynthesis associated genes
-fit.cont2host_photo <- topTable(fit.cont1_host, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[R|r]ibulose|[P|p]hoto|[F|f]ucox|[C|c]aroteno"))
-fit.cont2host_photo
+fit.cont2host_apop <- topTable(fit.cont1_host, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[A|a]pop|[U|u]biquitin|[R|r]epair"))
+fit.cont2host_apop
 
 
 # Heat map of Top significant genes
@@ -320,7 +320,7 @@ fit.cont1host_TopSign <- topTable(fit.cont1_host, number = 100)
 
 ####
 # Data feed for heat map, change as required..
-heatmap.data <- fit.cont1host_TopSign
+heatmap.data <- fit.cont1host_heat
 #
 
 normalised_DE_gene_expression_host <- gene_host_v[gene_host_v$genes$gene %in% heatmap.data$gene, ] %>% 
@@ -499,74 +499,43 @@ dev.off()
 code silenced
 ```{r, eval=FALSE}
 
-# Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-host_SS8_intercept_VS_all <- topTable(fit.cont1host, n=Inf) %>% write.table(, file="host_SS8_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+# General adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
+host_SS8_intercept_VS_all <- topTable(fit.cont1_host, n=Inf) %>% write.table(, file="host_SS8_intercept_VS_all_topTable.csv", sep="\t", quote=F)
 
 # Specific pairwise comparisons. What separates SS8 from respective strains?
 library(openxlsx)
-SampleGroup<-"Pairwise-Host-SS8_VS_respec_strains"
+SampleGroup<-"host_SS8_intercept_VS_pairwise"
 Title <- paste(SampleGroup,"DGE-Table")
 FileName <- paste(Title,".xlsx")
-limma.resA <- topTable(fit.cont1host,coef="SS8.vs.WT10",sort.by="p",n="Inf")
-limma.resB <- topTable(fit.cont1host,coef="SS8.vs.SS3",sort.by="p",n="Inf")
-limma.resC <- topTable(fit.cont1host,coef="SS8.vs.SS3",sort.by="p",n="Inf")
+limma.resA <- topTable(fit.cont1_host,coef="SS8.vs.WT10",sort.by="p",n="Inf")
+limma.resB <- topTable(fit.cont1_host,coef="SS8.vs.SS3",sort.by="p",n="Inf")
+limma.resC <- topTable(fit.cont1_host,coef="SS8.vs.SS3",sort.by="p",n="Inf")
 list_of_datasets_host <- list("SS8.vs.WT10" = limma.resA, "SS8.vs.SS3" = limma.resB, "SS8.vs.SS5" = limma.resC)
 write.xlsx(list_of_datasets_host, file=FileName, sep="\t", row.names=TRUE)
 
 
-
-# Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-host_WT10_intercept_VS_all <- topTable(fit.cont2host, n=Inf) %>% write.table(, file="host_WT10_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-
+# General adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
+host_WT10_intercept_VS_all <- topTable(fit.cont2_host, n=Inf) %>% write.table(, file="host_WT10_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+##
 # USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
-host_strains_8_up_VS_WT10 <- filter(genes_sign_WT10_Intercept, StrainStrain3 == 0 | StrainStrain3 == -1, StrainStrain5 == 0 | StrainStrain5 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+write.xlsx(genes_sign_WT10_Intercept_host, file="host_SS8_unique_DGE_expression_list_WT10.xlsx", sheetName="SS_8_vs_WT10_unique", append=TRUE, row.names=FALSE)
 #
-host_strains_8_down_VS_WT10 <- filter(genes_sign_WT10_Intercept, StrainStrain3 == 0 | StrainStrain3 == 1, StrainStrain5 == 0 | StrainStrain5 == 1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
 #
-host_strains_8_ALL_VS_WT10 <- filter(genes_sign_WT10_Intercept, StrainStrain8 == 1 | StrainStrain8 == -1) %>% .[order(.$Annotation),]
 #
-write.xlsx(host_strains_8_up_VS_WT10, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_WT10_unique_up", append=TRUE, row.names=FALSE)
+# General adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
+host_SS3_intercept_VS_all <- topTable(fit.cont3_host, n=Inf) %>% write.table(, file="host_SS3_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+##
+# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
+write.xlsx(genes_sign_SS3_Intercept_host, file="host_SS8_unique_DGE_expression_list_SS3.xlsx", sheetName="SS_8_vs_SS3_unique", append=TRUE, row.names=FALSE)
 #
-write.xlsx(host_strains_8_down_VS_WT10, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_WT10_unique_down", append=TRUE, row.names=FALSE)  
 #
-write.xlsx(host_strains_8_ALL_VS_WT10, file="SS8_host_DGE_expression_list.xlsx", sheetName="host_strains_8_ALL_VS_WT10", append=TRUE, row.names=FALSE) 
+#
+# General adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
+host_SS5_intercept_VS_all <- topTable(fit.cont4_host, n=Inf) %>% write.table(, file="host_SS5_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+#
+# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
+write.xlsx(genes_sign_SS5_Intercept_host, file="host_SS8_unique_DGE_expression_list_SS5.xlsx", sheetName="SS_8_vs_SS5_unique", append=T, row.names=FALSE)
 
-
-
-
-
-# Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-host_SS3_intercept_VS_all <- topTable(fit.cont3host, n=Inf) %>% write.table(, file="host_SS3_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-
-host_strains_8_up_VS_SS3 <- filter(genes_sign_SS3_Intercept, StrainStrain10 == 0 | StrainStrain10 == -1, StrainStrain5 == 0 | StrainStrain5 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
-#
-host_strains_8_down_VS_SS3 <- filter(genes_sign_SS3_Intercept, StrainStrain10 == 0 | StrainStrain10 == 1, StrainStrain5 == 0 | StrainStrain5 == 1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
-#
-host_strains_8_ALL_VS_SS3 <- filter(genes_sign_SS3_Intercept, StrainStrain8 == 1 | StrainStrain8 == -1) %>% .[order(.$Annotation),]
-#
-write.xlsx(host_strains_8_up_VS_SS3, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS3_unique_up", append=TRUE, row.names=FALSE)
-#
-write.xlsx(host_strains_8_down_VS_SS3, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS3_unique_down", append=TRUE, row.names=FALSE)  
-#
-write.xlsx(host_strains_8_ALL_VS_SS3, file="SS8_host_DGE_expression_list.xlsx", sheetName="host_strains_8_ALL_VS_SS3", append=TRUE, row.names=FALSE)  
-
-
-
-
-# Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-host_SS5_intercept_VS_all <- topTable(fit.cont4host, n=Inf) %>% write.table(, file="host_SS5_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-
-host_strains_8_up_VS_SS5 <- filter(genes_sign_SS5_Intercept, StrainStrain10 == 0 | StrainStrain10 == -1, StrainStrain3 == 0 | StrainStrain3 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
-#
-host_strains_8_up_VS_SS5 <- filter(genes_sign_SS5_Intercept, StrainStrain10 == 0 | StrainStrain10 == -1, StrainStrain3 == 0 | StrainStrain3 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
-#
-host_strains_8_ALL_VS_SS5 <- filter(genes_sign_SS5_Intercept, StrainStrain8 == 1 | StrainStrain8 == -1) %>% .[order(.$Annotation),]
-#
-write.xlsx(host_strains_8_up_VS_SS5, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS5_unique_up", append=TRUE, row.names=FALSE)
-#
-write.xlsx(host_strains_8_down_VS_SS5, file="SS8_host_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS5_unique_down", append=TRUE, row.names=FALSE)
-#
-write.xlsx(host_strains_8_ALL_VS_SS5, file="SS8_host_DGE_expression_list.xlsx", sheetName="host_strains_8_ALL_VS_SS5", append=TRUE, row.names=FALSE)
 
 ```
  
@@ -592,7 +561,7 @@ symbiont_annotations <- read_tsv("data/Symbiont_diamond_annot_20190117_1327.txt"
 # Exons
 symbiont_DGE <- DGEList(symbiont_counts[,-1], genes = symbiont_counts[,1], samples = symbiont_samples)
 
-filt <- filterByExpr(symbiont_DGE, design = model.matrix(~Strain, data = symbiont_DGE$samples), min.count = 10)
+filt <- filterByExpr(symbiont_DGE, design = model.matrix(~Strain, data = symbiont_DGE$samples), min.count = 40)
 
 symbiont_filtered1 <- symbiont_DGE[filt, , keep.lib.sizes = F]
 
@@ -704,7 +673,7 @@ summary(decideTests(fit.cont1_symbiont))
 #view fit stats
 topTable(fit.cont1_symbiont)
 
-genes_sign_SS8_Intercept <- decideTests(fit.cont1_symbiont) %>% as.data.frame() %>%  bind_cols(fit.cont1_symbiont$genes)
+genes_sign_SS8_Intercept_symbiont <- decideTests(fit.cont1_symbiont) %>% as.data.frame() %>%  bind_cols(fit.cont1_symbiont$genes)
 
 vennDiagram(genes_sign_SS8_Intercept[,1:3],include=c("up","down"),
             counts.col=c("brown3", "darkblue"),
@@ -733,7 +702,7 @@ cont.matrix2_symbiont
 ## fit contrasts
 fit.cont2_symbiont <- contrasts.fit(gene_symbiont_fit_NoIntercept, cont.matrix2_symbiont) %>% eBayes()
 
-genes_sign_WT10_Intercept <- decideTests(fit.cont2_symbiont) %>% as.data.frame() %>%  bind_cols(fit.cont2_symbiont$genes)
+genes_sign_WT10_Intercept_symbiont <- decideTests(fit.cont2_symbiont) %>% as.data.frame() %>%  bind_cols(fit.cont2_symbiont$genes)
 
 
 
@@ -744,7 +713,7 @@ cont.matrix3_symbiont
 ## fit contrasts
 fit.cont3_symbiont <- contrasts.fit(gene_symbiont_fit_NoIntercept, cont.matrix3_symbiont) %>% eBayes()
 
-genes_sign_SS3_Intercept <- decideTests(fit.cont3_symbiont) %>% as.data.frame() %>%  bind_cols(fit.cont3_symbiont$genes)
+genes_sign_SS3_Intercept_symbiont <- decideTests(fit.cont3_symbiont) %>% as.data.frame() %>%  bind_cols(fit.cont3_symbiont$genes)
 
 
 
@@ -755,7 +724,7 @@ cont.matrix4_symbiont
 ## fit contrasts
 fit.cont4_symbiont <- contrasts.fit(gene_symbiont_fit_NoIntercept, cont.matrix4_symbiont) %>% eBayes()
 
-genes_sign_SS5_Intercept <- decideTests(fit.cont4_symbiont) %>% as.data.frame() %>%  bind_cols(fit.cont4_symbiont$genes)
+genes_sign_SS5_Intercept_symbiont <- decideTests(fit.cont4_symbiont) %>% as.data.frame() %>%  bind_cols(fit.cont4_symbiont$genes)
 
 ```
 
@@ -849,11 +818,6 @@ fit.cont1symbiont_heat
 fit.cont2symbiont_photo <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[R|r]ibulose|[P|p]hoto|[F|f]ucox|[C|c]aroteno"))
 fit.cont2symbiont_photo
 
-
-# Photosynthesis associated genes
-fit.cont2symbiont_ammonium <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[A|a]mmonium"))
-fit.cont2symbiont_ammonium
-
 # Heat map of Top significant genes
 fit.cont1symbiont_TopSign <- topTable(fit.cont1_symbiont, number = 100)
 
@@ -862,7 +826,7 @@ fit.cont1symbiont_TopSign <- topTable(fit.cont1_symbiont, number = 100)
 
 ####
 # Data feed for heat map, change as required..
-heatmap.data <- fit.cont2symbiont_ammonium
+heatmap.data <- fit.cont2symbiont_photo
 #
 
 normalised_DE_gene_expression_symbiont <- gene_symbiont_v[gene_symbiont_v$genes$gene %in% heatmap.data$gene, ] %>% 
@@ -1000,7 +964,9 @@ plot_symbiont_gene("SymbC1.scaffold7634.1.m1")  # Superoxide dismutase, SS8 UNIQ
 #plot_symbiont_gene("SymbC1.scaffold2650.2.m1")  #	E3 ubiquitin- ligase HERC1
 #plot_symbiont_gene("SymbC1.scaffold12561.1.m1") #	Cytochrome mitochondrial
 plot_symbiont_gene("SymbC1.scaffold9320.1.m1")  # Heat shock 70 kDa 
-plot_symbiont_gene("SymbC1.scaffold2730.1.m1")  
+
+
+plot_symbiont_gene("SymbC1.scaffold8083.1.m1")  
 
 dev.off() 
 
@@ -1050,73 +1016,44 @@ code silenced
 ```{r, eval=FALSE}
 
 # Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-symbiont_SS8_intercept_VS_all <- topTable(fit.cont1symbiont, n=Inf) %>% write.table(, file="symbiont_SS8_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-
+symbiont_SS8_intercept_VS_all <- topTable(fit.cont1_symbiont, n=Inf) %>% write.table(, file="symbiont_SS8_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+#
 # Specific pairwise comparisons. What separates SS8 from respective strains?
 library(openxlsx)
-SampleGroup<-"Pairwise-Symbiont-SS8_VS_respec_strains"
+SampleGroup<-"symbiont_SS8_intercept_VS_pairwise"
 Title <- paste(SampleGroup,"DGE-Table")
 FileName <- paste(Title,".xlsx")
-limma.resA <- topTable(fit.cont1symbiont,coef="SS8.vs.WT10",sort.by="p",n="Inf")
-limma.resB <- topTable(fit.cont1symbiont,coef="SS8.vs.SS3",sort.by="p",n="Inf")
-limma.resC <- topTable(fit.cont1symbiont,coef="SS8.vs.SS3",sort.by="p",n="Inf")
+limma.resA <- topTable(fit.cont1_symbiont,coef="SS8.vs.WT10",sort.by="p",n="Inf")
+limma.resB <- topTable(fit.cont1_symbiont,coef="SS8.vs.SS3",sort.by="p",n="Inf")
+limma.resC <- topTable(fit.cont1_symbiont,coef="SS8.vs.SS5",sort.by="p",n="Inf")
 list_of_datasets_symbiont <- list("SS8.vs.WT10" = limma.resA, "SS8.vs.SS3" = limma.resB, "SS8.vs.SS5" = limma.resC)
 write.xlsx(list_of_datasets_symbiont, file=FileName, sep="\t", row.names=TRUE)
+#
 
-
-
+#
 # Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-symbiont_WT10_intercept_VS_all <- topTable(fit.cont2symbiont, n=Inf) %>% write.table(, file="symbiont_WT10_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-
+symbiont_WT10_intercept_VS_all <- topTable(fit.cont2_symbiont, n=Inf) %>% write.table(, file="symbiont_WT10_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+##
 # USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
-symbiont_strains_8_up_VS_WT10 <- filter(genes_sign_WT10_Intercept, StrainStrain3 == 0 | StrainStrain3 == -1, StrainStrain5 == 0 | StrainStrain5 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+write.xlsx(genes_sign_WT10_Intercept_symbiont, file="symbiont_SS8_unique_DGE_expression_list_WT10.xlsx", sheetName="SS_8_vs_WT10_unique", append=TRUE, row.names=FALSE)
 #
-symbiont_strains_8_down_VS_WT10 <- filter(genes_sign_WT10_Intercept, StrainStrain3 == 0 | StrainStrain3 == 1, StrainStrain5 == 0 | StrainStrain5 == 1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
 #
-symbiont_strains_8_ALL_VS_WT10 <- filter(genes_sign_WT10_Intercept, StrainStrain8 == 1 | StrainStrain8 == -1) %>% .[order(.$Annotation),]
 #
-write.xlsx(symbiont_strains_8_up_VS_WT10, file="SS8_symbiont_DGE_expression_list.xlsx", sheetName="SS_8_vs_WT10_unique_up", append=TRUE, row.names=FALSE)
-#
-write.xlsx(symbiont_strains_8_down_VS_WT10, file="SS8_symbiont_DGE_expression_list.xlsx", sheetName="SS_8_vs_WT10_unique_down", append=TRUE, row.names=FALSE)  
-#
-write.xlsx(symbiont_strains_8_ALL_VS_WT10, file="SS8_symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strains_8_ALL_VS_WT10", append=TRUE, row.names=FALSE) 
-
-
-
-
-
 # Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-symbiont_SS3_intercept_VS_all <- topTable(fit.cont3symbiont, n=Inf) %>% write.table(, file="symbiont_SS3_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-
-symbiont_strains_8_up_VS_SS3 <- filter(genes_sign_SS3_Intercept, StrainStrain10 == 0 | StrainStrain10 == -1, StrainStrain5 == 0 | StrainStrain5 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
+symbiont_SS3_intercept_VS_all <- topTable(fit.cont3_symbiont, n=Inf) %>% write.table(, file="symbiont_SS3_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+##
+# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
+write.xlsx(genes_sign_SS3_Intercept_symbiont, file="symbiont_SS8_unique_DGE_expression_list_SS3.xlsx", sheetName="SS_8_vs_SS3_unique", append=TRUE, row.names=FALSE)
 #
-symbiont_strains_8_down_VS_SS3 <- filter(genes_sign_SS3_Intercept, StrainStrain10 == 0 | StrainStrain10 == 1, StrainStrain5 == 0 | StrainStrain5 == 1, StrainStrain8 == -1) %>% .[order(.$Annotation),]
 #
-symbiont_strains_8_ALL_VS_SS3 <- filter(genes_sign_SS3_Intercept, StrainStrain8 == 1 | StrainStrain8 == -1) %>% .[order(.$Annotation),]
 #
-write.xlsx(symbiont_strains_8_up_VS_SS3, file="SS8_symbiont_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS3_unique_up", append=TRUE, row.names=FALSE)
-#
-write.xlsx(symbiont_strains_8_down_VS_SS3, file="SS8_symbiont_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS3_unique_down", append=TRUE, row.names=FALSE)  
-#
-write.xlsx(symbiont_strains_8_ALL_VS_SS3, file="SS8_symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strains_8_ALL_VS_SS3", append=TRUE, row.names=FALSE)  
-
-
-
-
 # Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-symbiont_SS5_intercept_VS_all <- topTable(fit.cont4symbiont, n=Inf) %>% write.table(, file="symbiont_SS5_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+symbiont_SS5_intercept_VS_all <- topTable(fit.cont4_symbiont, n=Inf) %>% write.table(, file="symbiont_SS5_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+#
+# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
+write.xlsx(genes_sign_SS5_Intercept_symbiont, file="symbiont_SS8_unique_DGE_expression_list_SS5.xlsx", sheetName="SS_8_vs_SS5_unique", append=TRUE, row.names=FALSE)
 
-symbiont_strains_8_up_VS_SS5 <- filter(genes_sign_SS5_Intercept, StrainStrain10 == 0 | StrainStrain10 == -1, StrainStrain3 == 0 | StrainStrain3 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
-#
-symbiont_strains_8_up_VS_SS5 <- filter(genes_sign_SS5_Intercept, StrainStrain10 == 0 | StrainStrain10 == -1, StrainStrain3 == 0 | StrainStrain3 == -1, StrainStrain8 == 1) %>% .[order(.$Annotation),]
-#
-symbiont_strains_8_ALL_VS_SS5 <- filter(genes_sign_SS5_Intercept, StrainStrain8 == 1 | StrainStrain8 == -1) %>% .[order(.$Annotation),]
-#
-write.xlsx(symbiont_strains_8_up_VS_SS5, file="SS8_symbiont_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS5_unique_up", append=TRUE, row.names=FALSE)
-#
-write.xlsx(symbiont_strains_8_down_VS_SS5, file="SS8_symbiont_DGE_expression_list.xlsx", sheetName="SS_8_vs_SS5_unique_down", append=TRUE, row.names=FALSE)
-#
-write.xlsx(symbiont_strains_8_ALL_VS_SS5, file="SS8_symbiont_DGE_expression_list.xlsx", sheetName="symbiont_strains_8_ALL_VS_SS5", append=TRUE, row.names=FALSE)
+
 
 ```
  
@@ -1222,6 +1159,7 @@ title(Title, line = +3.0, adj = +0.4)
 dev.off() 
 
 ```
+<br><br>
 
 
 
@@ -1301,6 +1239,7 @@ time<-format(Sys.time(),"%d-%m-%Y")
 Title <- paste(SampleGroup,"MDS-logcounts-euclidean")
 FileName <- paste(Title,time,".jpg")
 jpeg(file=FileName, width = 2020, height = 1080, res = 200)
+
 par(mfrow=c(1,2))
 #
 plot(scores3[,1], scores3[,2], col="Black", bg=c("Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","limegreen","limegreen","limegreen","limegreen","limegreen","Red","Red","Red","Red","Red","Red"),pch=c(21,21,21,21))
@@ -1342,10 +1281,10 @@ dev.off()
 ##
 Title <- paste(SampleGroup,"Adonis")
 FileName <- paste("5-",Title,time,".txt")
-#
 ad_host=adonis(t(logcounts_host)~CellType+Strain, permutations = 999, data=conditions,method="euclidean")
 ad_host 
-capture.output(ad_host,file=FileName)
+#
+#capture.output(ad_host,file=FileName)
 #
 Title <- paste(SampleGroup,"TukeyHSD")
 FileName <- paste("5-",Title,time,".txt")
@@ -1353,11 +1292,13 @@ ad_host=adonis(t(logcounts_host)~Strain,data=conditions,method="euclidean")
 ad_host
 pco1=scores3[,1]
 TukeyHSD(aov(pco1~Strain))
-capture.output(TukeyHSD(aov(pco1~Strain)),file=FileName)
+#
+#capture.output(TukeyHSD(aov(pco1~Strain)),file=FileName)
 
 ```
 
 
+<br><br>
 
 
 
@@ -1430,10 +1371,10 @@ scores3=dds.pcoa3$vectors
 SampleGroup<-"Symb-STAR"
 time<-format(Sys.time(),"%d-%m-%Y")
 #
-Title <- paste(SampleGroup,"MDS-logcounts-euclidean-logCPM")
-FileName <- paste(Title,time,".jpg")
-jpeg(file=FileName, width = 2020, height = 1080, res = 200)
-par(mfrow=c(1,2))
+#Title <- paste(SampleGroup,"MDS-logcounts-euclidean-logCPM")
+#FileName <- paste(Title,time,".jpg")
+#jpeg(file=FileName, width = 2020, height = 1080, res = 200)
+#par(mfrow=c(1,2))
 #
 plot(scores3[,1], scores3[,2], col="Black", bg=c("Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","limegreen","limegreen","limegreen","limegreen","limegreen","Red","Red","Red","Red","Red","Red"),pch=c(21,21,21,21))
 # plot(scores3[,1], scores3[,2],col=as.numeric(as.factor(Strain)))
@@ -1449,9 +1390,9 @@ ordispider(scores3,Strain,label=T)
 ordiellipse(scores3,Strain)
 #
 Title <- paste(SampleGroup,"MDS-Plot")
-#
 title(Title)
-dev.off() 
+#
+# dev.off() 
 
 ## interactive 3d plot, to confirm
 ## interactive 3d plot, to confirm
@@ -1477,7 +1418,8 @@ FileName <- paste("5-",Title,time,".txt")
 #
 ad_symbiont=adonis(t(logcounts_symbiont)~CellType+Strain, permutations = 999, data=conditions,method="euclidean")
 ad_symbiont 
-capture.output(ad_symbiont,file=FileName)
+#
+#capture.output(ad_symbiont,file=FileName)
 #
 Title <- paste(SampleGroup,"TukeyHSD")
 FileName <- paste("5-",Title,time,".txt")
@@ -1485,7 +1427,8 @@ ad_symbiont=adonis(t(logcounts_symbiont)~Strain,data=conditions,method="euclidea
 ad_symbiont
 pco1=scores3[,1]
 TukeyHSD(aov(pco1~Strain))
-capture.output(TukeyHSD(aov(pco1~Strain)),file=FileName)
+#
+#capture.output(TukeyHSD(aov(pco1~Strain)),file=FileName)
 
 ```
 
