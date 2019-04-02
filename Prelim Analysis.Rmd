@@ -111,8 +111,6 @@ Host_lcpm2 <- cpm(gene_host_filtered2, log=TRUE)
 boxplot(Host_lcpm2, las=2, main="")
 title(main="B. Example: Normalised data",ylab="Log-cpm")
 
-dev.off() 
-
 
 # check that data is still all matching up
 table(host_samples$SampleName == colnames(gene_host_filtered2))
@@ -141,14 +139,13 @@ plotMDS(host_v, main = "exon counts", labels = host_v$targets$FileName %>% str_r
 plotMDS(gene_host_v, main = "gene counts",labels = gene_host_v$targets$FileName %>% str_remove("host\\."), col = factor(gene_host_v$targets$Strain %>% str_replace("host\\.(.*?)\\..*", "\\1")) %>% as.integer())
 
 ```
-Fig. 2 MDS plot. Left side - estimate according to whole gene counts. Right side - estimate according to exon expression.
+Fig. 2 MDS plot.
+
 <br><br>  
 
 
 ## Contrasts 1
-### Make contrasts to compare host SS8 to other host strains (SS3, SS5 and WT10). 
 <br>
-1) What separates the SS8 from all other strains? General adaptations of SS8. 
 ```{r Make contrasts - Host, fig.align='center'}
 
 ## CONTRASTS
@@ -173,13 +170,16 @@ vennDiagram(genes_sign_SS8_Intercept_host[,1:3],include=c("up","down"),
             circle.col = c("darkred", "blue", "green4"))
 title("Venndiagram host. SS8 strain vs all other strains [all genes]", line = 1)
 
+
+#genes_sign_SS8_Intercept_host2 <- decideTests(fit.cont1_host, lfc=1) %>% as.data.frame() %>%  bind_cols(fit.cont1_host$genes)
+#vennDiagram(genes_sign_SS8_Intercept_host2[,1:3],include=c("up","down"),
+#            counts.col=c("brown3", "darkblue"),
+#            circle.col = c("darkred", "blue", "green4"))
+#title("Venndiagram symbiont. SS8 strain vs all other strains [all genes]", line = 1)
+
 ```
 
 Fig. 3 Venndiagram showing genes that are significantly different expressed between the SS8 and respective other strains. The differentially expressed genes show the general difference of SS8 to all other strains, i.e. the specific adaptations of SS8.
-
-<br><br>
-
-DATA EXPORT at the end of the script..
 
 <br><br>
 
@@ -188,8 +188,8 @@ DATA EXPORT at the end of the script..
 <br>
 What makes SS8 unique compared to all other strains? Which are the genes that are uniquely DE by SS8? 
 ```{r, fig.align='center'}
-## CONTRAST COMPARING THE SS8 to the other host types, here WT10
-cont.matrix2_host <- makeContrasts(WT10.vs.SS8 = StrainStrain10 - StrainStrain8, WT10.vs.SS3 = StrainStrain10 - StrainStrain3, WT10.vs.SS5 = StrainStrain10 - StrainStrain5, levels=design)
+## CONTRAST COMPARING WT10 to the other host types
+cont.matrix2_host <- makeContrasts(SS8.vs.WT10 = StrainStrain8 - StrainStrain10, SS3.vs.WT10 = StrainStrain3 - StrainStrain10, SS5.vs.WT10 = StrainStrain5 - StrainStrain10, levels=design)
 cont.matrix2_host
 
 ## fit contrasts
@@ -197,27 +197,18 @@ fit.cont2_host <- contrasts.fit(gene_host_fit_NoIntercept, cont.matrix2_host) %>
 
 genes_sign_WT10_Intercept_host <- decideTests(fit.cont2_host) %>% as.data.frame() %>%  bind_cols(fit.cont2_host$genes)
 
+vennDiagram(genes_sign_WT10_Intercept_host[,1:3],include=c("up","down"),
+            counts.col=c("brown3", "darkblue"),
+            circle.col = c("darkred", "blue", "green4"))
+title("Venndiagram symbiont. SS8 strain vs all other strains [all genes]", line = 1)
 
 
-## CONTRAST COMPARING THE SS8 to the other host types, here SS3
-cont.matrix3_host <- makeContrasts(SS3.vs.SS8 = StrainStrain3 - StrainStrain8, SS3.vs.SS5 = StrainStrain3 - StrainStrain5, SS3.vs.WT10 = StrainStrain3 - StrainStrain10, levels=design)
-cont.matrix3_host
+#genes_sign_WT10_Intercept_host2 <- decideTests(fit.cont2_host, lfc=1) %>% as.data.frame() %>%  bind_cols(fit.cont2_host$genes)
+#vennDiagram(genes_sign_WT10_Intercept_host2[,1:3],include=c("up","down"),
+#            counts.col=c("brown3", "darkblue"),
+#            circle.col = c("darkred", "blue", "green4"))
+#title("Venndiagram symbiont. SS8 strain vs all other strains [all genes]", line = 1)
 
-## fit contrasts
-fit.cont3_host <- contrasts.fit(gene_host_fit_NoIntercept, cont.matrix3_host) %>% eBayes()
-
-genes_sign_SS3_Intercept_host <- decideTests(fit.cont3_host) %>% as.data.frame() %>%  bind_cols(fit.cont3_host$genes)
-
-
-
-## CONTRAST COMPARING THE SS8 to the other host types, here SS5
-cont.matrix4_host <- makeContrasts(SS5.vs.SS8 = StrainStrain5 - StrainStrain8, SS5.vs.SS3 = StrainStrain5 - StrainStrain3, SS5.vs.WT10 = StrainStrain5 - StrainStrain10, levels=design)
-cont.matrix4_host
-
-## fit contrasts
-fit.cont4_host <- contrasts.fit(gene_host_fit_NoIntercept, cont.matrix4_host) %>% eBayes()
-
-genes_sign_SS5_Intercept_host <- decideTests(fit.cont4_host) %>% as.data.frame() %>%  bind_cols(fit.cont4_host$genes)
 
 ```
 
@@ -312,15 +303,21 @@ fit.cont2host_apop <- topTable(fit.cont1_host, number = Inf, p.value = 0.05) %>%
 fit.cont2host_apop
 
 
+# Glyoxylate cycle associated genes
+fit.cont2host_glyoxy <- topTable(fit.cont1_host, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[A|a]cetyl|[G|g]lyoxylate|[M|m]alate|[A|a]conitase|[I|i]socitrate"))
+fit.cont2host_glyoxy
+
+
+
 # Heat map of Top significant genes
-fit.cont1host_TopSign <- topTable(fit.cont1_host, number = 100)
+fit.cont1host_TopSign <- topTable(fit.cont1_host, number = 500)
 
 
 
 
 ####
 # Data feed for heat map, change as required..
-heatmap.data <- fit.cont1host_TopSign
+heatmap.data <- fit.cont1host_heat
 #
 
 normalised_DE_gene_expression_host <- gene_host_v[gene_host_v$genes$gene %in% heatmap.data$gene, ] %>% 
@@ -346,86 +343,16 @@ expression_heatmap_host <- normalised_DE_gene_expression_host %>%
   scale_fill_gradient2(low = "#0073ff", high = "#ff8c00") +
   theme_bw() +
   #theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
-  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) + # With Text
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_text(size=8)) + # With Text
   scale_x_discrete(labels = host_samples$Strain %>% str_remove("Strain")) +
   xlab("Sample Strain")
 #
 expression_heatmap_host
 
 
+
 ```
 <br><br>
-  
-
-## Exploratory analysis 3
-### Most variable genes across samples
-What are the most variable genes across samples?
-```{r, message=FALSE, warning=FALSE, error=FALSE, fig.align='center'}
-# Packages
-library(limma)
-library(edgeR)
-library(Glimma)
-library(gplots)
-library(org.Mm.eg.db)
-library(RColorBrewer)
-library(BiasedUrn)
-library(openxlsx)
-library(vegan)
-library(rgl)
-library(ape)
-library(openxlsx)
-library(ggplot2)
-
-
-# Heat map of most variable genes across samples
-# Take count matrix
-heat.map.data <- DGEList(gene_host_filtered2$counts, samples = host_samples$Strain)
-# Convert to cpm
-cpm.heat <- cpm(heat.map.data, log = TRUE)
-# calculate variance across gene rows
-var_genes <- apply(cpm.heat, MARGIN = 1, FUN = var)
-head(var_genes)
-#
-## Select number of genes to display and sort in a decreasing order
-select_var <- names(sort(var_genes, decreasing = TRUE)) [1:500]
-names(head(sort(select_var, decreasing = TRUE)))
-head(select_var)
-## take subsection with high logCPM
-highly_variable_lcpm <- cpm.heat[select_var, ]
-dim(highly_variable_lcpm)
-normalised_DE_gene_expression_host <- highly_variable_lcpm
-
-mypalette <- brewer.pal(11, "RdYlBu")
-morecols <- colorRampPalette(mypalette)
-col.cell <- c("purple", "orange")[host_samples$CellType]
-col.Strain <- c("blue", "red", "dark green")[host_samples$Strain]
-column_labels <- paste(host_samples$CellType, host_samples$Strain, sep = ".")
-#column_labels <- paste(host_samples$Strain)
-row_labels <- paste(gene_host_filtered2$genes)
-
-heatmap.2(
-  highly_variable_lcpm,
-  #Rowv = FALSE,
-  #Colv = FALSE,
-  main = "Top 500 most variable genes across samples",
-  ColSideColors = col.Strain,
-  col = rev(morecols(50)),
-  keysize = 2,
-  key.par=list(mgp=c(1, 0.5, 0), mar=c(5, 2, 3, 1)),
-  #lmat = lmat, 
-  #lmat=rbind(c(0, 4, 2), c(0, 1, 3)), lhei=c(2.5, 10), lwid=c(1, 10, 1),
-  trace = "none",
-  scale = "row",
-  labCol = column_labels,
-  #offsetCol = 0.5,
-  ## fix stuff that falls off the image with the following line
-  margins = c(8,2),
-  ## remove junk on side
-  labRow = ""
-)
-
-```
-
   
 
   
@@ -454,6 +381,7 @@ layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 plot_host_gene("aten_0.1.m1.24908.m1")
 plot_host_gene("aten_0.1.m1.31125.m1")
 #plot_host_gene("aten_0.1.m1.17022.m1")
+plot_host_gene("aten_0.1.m1.10027.m1")
 
 dev.off() 
 
@@ -486,8 +414,6 @@ plot_host_gene_by_exon("aten_0.1.m1.24908.m1")
 #plot_host_gene_by_exon("aten_0.1.m1.17022.m1")
 
 
-dev.off() 
-
 ```
 
 ***
@@ -498,44 +424,23 @@ dev.off()
 ## Data export host
 code silenced
 ```{r, eval=FALSE}
-
-# General adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-host_SS8_intercept_VS_all <- topTable(fit.cont1_host, n=Inf) %>% write.table(, file="host_SS8_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-
 # Specific pairwise comparisons. What separates SS8 from respective strains?
 library(openxlsx)
-SampleGroup<-"host_SS8_intercept_VS_pairwise"
+SampleGroup<-"host_WT10_intercept_VS_pairwise"
 Title <- paste(SampleGroup,"DGE-Table")
 FileName <- paste(Title,".xlsx")
-limma.resA <- topTable(fit.cont1_host,coef="SS8.vs.WT10",sort.by="p",n="Inf")
-limma.resB <- topTable(fit.cont1_host,coef="SS8.vs.SS3",sort.by="p",n="Inf")
-limma.resC <- topTable(fit.cont1_host,coef="SS8.vs.SS3",sort.by="p",n="Inf")
-list_of_datasets_host <- list("SS8.vs.WT10" = limma.resA, "SS8.vs.SS3" = limma.resB, "SS8.vs.SS5" = limma.resC)
+limma.resA <- topTable(fit.cont2_host,coef="SS8.vs.WT10",sort.by="p",n="Inf")
+limma.resB <- topTable(fit.cont2_host,coef="SS3.vs.WT10",sort.by="p",n="Inf")
+limma.resC <- topTable(fit.cont2_host,coef="SS5.vs.WT10",sort.by="p",n="Inf")
+list_of_datasets_host <- list("SS8.vs.WT10" = limma.resA, "SS3.vs.WT10" = limma.resB, "SS5.vs.WT10" = limma.resC)
 write.xlsx(list_of_datasets_host, file=FileName, sep="\t", row.names=TRUE)
-
+#
 
 # General adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
 host_WT10_intercept_VS_all <- topTable(fit.cont2_host, n=Inf) %>% write.table(, file="host_WT10_intercept_VS_all_topTable.csv", sep="\t", quote=F)
 ##
 # USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
 write.xlsx(genes_sign_WT10_Intercept_host, file="host_SS8_unique_DGE_expression_list_WT10.xlsx", sheetName="SS_8_vs_WT10_unique", append=TRUE, row.names=FALSE)
-#
-#
-#
-# General adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-host_SS3_intercept_VS_all <- topTable(fit.cont3_host, n=Inf) %>% write.table(, file="host_SS3_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-##
-# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
-write.xlsx(genes_sign_SS3_Intercept_host, file="host_SS8_unique_DGE_expression_list_SS3.xlsx", sheetName="SS_8_vs_SS3_unique", append=TRUE, row.names=FALSE)
-#
-#
-#
-# General adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-host_SS5_intercept_VS_all <- topTable(fit.cont4_host, n=Inf) %>% write.table(, file="host_SS5_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-#
-# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
-write.xlsx(genes_sign_SS5_Intercept_host, file="host_SS8_unique_DGE_expression_list_SS5.xlsx", sheetName="SS_8_vs_SS5_unique", append=T, row.names=FALSE)
-
 
 ```
  
@@ -618,7 +523,7 @@ Symbiont_lcpm2 <- cpm(gene_symbiont_filtered2, log=TRUE)
 boxplot(Symbiont_lcpm2, las=2, main="")
 title(main="B. Example: Normalised data",ylab="Log-cpm")
 
-dev.off() 
+
 
 
 # check that data is still all matching up
@@ -636,7 +541,7 @@ design <- model.matrix(~0 +Strain, data = gene_symbiont_filtered2$samples)
 colnames(design)
 
 ```
-Fig. 1 Limma voom model.
+Fig. 4 Limma voom model.
 <br><br>
   
 ## MDS to check overall expression differences
@@ -648,14 +553,12 @@ plotMDS(symbiont_v, main = "exon counts", labels = symbiont_v$targets$FileName %
 plotMDS(gene_symbiont_v, main = "gene counts",labels = gene_symbiont_v$targets$FileName %>% str_remove("symbiont\\."), col = factor(gene_symbiont_v$targets$Strain %>% str_replace("symbiont\\.(.*?)\\..*", "\\1")) %>% as.integer())
 
 ```
-Fig. 2 MDS plot. Left side - estimate according to whole gene counts. Right side - estimate according to exon expression.
+Fig. 5 MDS plots.
 <br><br>  
 
 
 ## Contrasts 1
-### Make contrasts to compare symbiont SS8 to other symbiont strains (SS3, SS5 and WT10). 
 <br>
-1) What separates the SS8 from all other strains? General adaptations of SS8. 
 ```{r Make contrasts - Symbiont, fig.align='center'}
 
 ## CONTRASTS
@@ -682,7 +585,7 @@ title("Venndiagram symbiont. SS8 strain vs all other strains [all genes]", line 
 
 ```
 
-Fig. 3 Venndiagram showing genes that are significantly different expressed between the SS8 and respective other strains. The differentially expressed genes show the general difference of SS8 to all other strains, i.e. the specific adaptations of SS8.
+Fig. 6 Venndiagram showing genes that are significantly different expressed between the SS8 and respective other strains. The differentially expressed genes show the general difference of SS8 to all other strains, i.e. the specific adaptations of SS8.
 
 <br><br>
 
@@ -696,35 +599,24 @@ DATA EXPORT at the end of the script..
 What makes SS8 unique compared to all other strains? Which are the genes that are uniquely DE by SS8? 
 ```{r, fig.align='center'}
 ## CONTRAST COMPARING THE SS8 to the other symbiont types, here WT10
-cont.matrix2_symbiont <- makeContrasts(WT10.vs.SS8 = StrainStrain10 - StrainStrain8, WT10.vs.SS3 = StrainStrain10 - StrainStrain3, WT10.vs.SS5 = StrainStrain10 - StrainStrain5, levels=design)
+cont.matrix2_symbiont <- makeContrasts(SS8.vs.WT10 =  StrainStrain8 - StrainStrain10, SS3.vs.WT10 =  StrainStrain3 - StrainStrain10, SS5.vs.WT10 = StrainStrain5 - StrainStrain10, levels=design)
 cont.matrix2_symbiont
 
 ## fit contrasts
 fit.cont2_symbiont <- contrasts.fit(gene_symbiont_fit_NoIntercept, cont.matrix2_symbiont) %>% eBayes()
 
 genes_sign_WT10_Intercept_symbiont <- decideTests(fit.cont2_symbiont) %>% as.data.frame() %>%  bind_cols(fit.cont2_symbiont$genes)
+vennDiagram(genes_sign_WT10_Intercept_symbiont[,1:3],include=c("up","down"),
+            counts.col=c("brown3", "darkblue"),
+            circle.col = c("darkred", "blue", "green4"))
+title("Venndiagram symbiont. SS8 strain vs all other strains [all genes]", line = 1)
 
 
-
-## CONTRAST COMPARING THE SS8 to the other symbiont types, here SS3
-cont.matrix3_symbiont <- makeContrasts(SS3.vs.SS8 = StrainStrain3 - StrainStrain8, SS3.vs.SS5 = StrainStrain3 - StrainStrain5, SS3.vs.WT10 = StrainStrain3 - StrainStrain10, levels=design)
-cont.matrix3_symbiont
-
-## fit contrasts
-fit.cont3_symbiont <- contrasts.fit(gene_symbiont_fit_NoIntercept, cont.matrix3_symbiont) %>% eBayes()
-
-genes_sign_SS3_Intercept_symbiont <- decideTests(fit.cont3_symbiont) %>% as.data.frame() %>%  bind_cols(fit.cont3_symbiont$genes)
-
-
-
-## CONTRAST COMPARING THE SS8 to the other symbiont types, here SS5
-cont.matrix4_symbiont <- makeContrasts(SS5.vs.SS8 = StrainStrain5 - StrainStrain8, SS5.vs.SS3 = StrainStrain5 - StrainStrain3, SS5.vs.WT10 = StrainStrain5 - StrainStrain10, levels=design)
-cont.matrix4_symbiont
-
-## fit contrasts
-fit.cont4_symbiont <- contrasts.fit(gene_symbiont_fit_NoIntercept, cont.matrix4_symbiont) %>% eBayes()
-
-genes_sign_SS5_Intercept_symbiont <- decideTests(fit.cont4_symbiont) %>% as.data.frame() %>%  bind_cols(fit.cont4_symbiont$genes)
+#genes_sign_WT10_Intercept_symbiont2 <- decideTests(fit.cont2_symbiont, lfc=0.5) %>% as.data.frame() %>%  bind_cols(fit.cont2_symbiont$genes)
+#vennDiagram(genes_sign_WT10_Intercept_symbiont2[,1:3],include=c("up","down"),
+#            counts.col=c("brown3", "darkblue"),
+#            circle.col = c("darkred", "blue", "green4"))
+#title("Venndiagram symbiont. SS8 strain vs all other strains [all genes]", line = 1)
 
 ```
 
@@ -736,7 +628,8 @@ genes_sign_SS5_Intercept_symbiont <- decideTests(fit.cont4_symbiont) %>% as.data
 ```{r DE-heatmap-plot-symbiont, fig.align='center'}
 # Filter genes called as DE to control in any strain
 
-any_DE_genes_symbiont <- decideTests(fit.cont1_symbiont, lfc=0.5) %>% 
+# any_DE_genes_symbiont <- decideTests(fit.cont1_symbiont, lfc=0.5) %>% 
+any_DE_genes_symbiont <- decideTests(fit.cont1_symbiont) %>% 
   as.data.frame() %>% 
   bind_cols(fit.cont2_symbiont$genes) %>% 
   filter_if(~ is.numeric(.), any_vars(. != 0))
@@ -771,8 +664,8 @@ expression_heatmap_symbiont <- normalised_DE_gene_expression_symbiont %>%
   geom_tile() +
   scale_fill_gradient2(low = "#0073ff", high = "#ff8c00") +
   theme_bw() +
-  #theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
-  theme(axis.ticks.y = element_blank(), axis.text.y = element_text(size=8)) + #Text
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
+  #theme(axis.ticks.y = element_blank(), axis.text.y = element_text(size=8)) + #Text
   scale_x_discrete(labels = symbiont_samples$Strain %>% str_remove("Strain")) +
   xlab("Sample Strain")
 #
@@ -810,7 +703,7 @@ Filter genes according to annotation. Which are heat stress related genes that a
 ## Filter based on gene symbiont_annotations
 
 # Heat stress associated genes
-fit.cont1symbiont_heat <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[H|h]eat|[S|s]uperoxide|[G|g]lutathione|[C|c]haperone|[P|p]eroxidase|[H|h]sp"))
+fit.cont1symbiont_heat <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[H|h]eat|[S|s]uperoxide|[G|g]lutathione|[C|c]haperone|[P|p]eroxidase|[H|h]sp|[D|d]naj"))
 fit.cont1symbiont_heat
 
 
@@ -818,19 +711,16 @@ fit.cont1symbiont_heat
 fit.cont2symbiont_photo <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[R|r]ibulose|[P|p]hoto|[F|f]ucox|[C|c]aroteno"))
 fit.cont2symbiont_photo
 
-# Photosynthesis associated genes
-fit.cont2symbiont_fucox <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[F|f]ucox"))
-fit.cont2symbiont_fucox
+fit.cont2symbiont_photo <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[R|r]ibulose|[R|r]bcL"))
+fit.cont2symbiont_photo
 
 # Heat map of Top significant genes
-fit.cont1symbiont_TopSign <- topTable(fit.cont1_symbiont, number = 100)
-
-
+fit.cont1symbiont_TopSign <- topTable(fit.cont2_symbiont, number = 500)
 
 
 ####
 # Data feed for heat map, change as required..
-heatmap.data <- fit.cont2symbiont_photo
+heatmap.data <- fit.cont1symbiont_heat
 #
 
 normalised_DE_gene_expression_symbiont <- gene_symbiont_v[gene_symbiont_v$genes$gene %in% heatmap.data$gene, ] %>% 
@@ -856,7 +746,7 @@ expression_heatmap_symbiont <- normalised_DE_gene_expression_symbiont %>%
   scale_fill_gradient2(low = "#0073ff", high = "#ff8c00") +
   theme_bw() +
   #theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
-  theme(axis.ticks.y = element_blank(), axis.text.y = element_text(size=8)) + # With Text
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_text(size=5)) + # With Text
   scale_x_discrete(labels = symbiont_samples$Strain %>% str_remove("Strain")) +
   xlab("Sample Strain")
 #
@@ -867,78 +757,6 @@ expression_heatmap_symbiont
 <br><br>
   
 
-## Exploratory analysis 3
-### Most variable genes across samples
-What are the most variable genes across samples?
-```{r, message=FALSE, warning=FALSE, error=FALSE, fig.align='center'}
-# Packages
-library(limma)
-library(edgeR)
-library(Glimma)
-library(gplots)
-library(org.Mm.eg.db)
-library(RColorBrewer)
-library(BiasedUrn)
-library(openxlsx)
-library(vegan)
-library(rgl)
-library(ape)
-library(openxlsx)
-library(ggplot2)
-
-
-# Heat map of most variable genes across samples
-# Take count matrix
-heat.map.data <- DGEList(gene_symbiont_filtered2$counts, samples = symbiont_samples$Strain)
-# Convert to cpm
-cpm.heat <- cpm(heat.map.data, log = TRUE)
-# calculate variance across gene rows
-var_genes <- apply(cpm.heat, MARGIN = 1, FUN = var)
-head(var_genes)
-#
-## Select number of genes to display and sort in a decreasing order
-select_var <- names(sort(var_genes, decreasing = TRUE)) [1:50]
-names(head(sort(select_var, decreasing = TRUE)))
-head(select_var)
-## take subsection with high logCPM
-highly_variable_lcpm <- cpm.heat[select_var, ]
-dim(highly_variable_lcpm)
-normalised_DE_gene_expression_symbiont <- highly_variable_lcpm
-
-mypalette <- brewer.pal(11, "RdYlBu")
-morecols <- colorRampPalette(mypalette)
-col.cell <- c("purple", "orange")[symbiont_samples$CellType]
-col.Strain <- c("blue", "red", "dark green")[symbiont_samples$Strain]
-column_labels <- paste(symbiont_samples$CellType, symbiont_samples$Strain, sep = ".")
-#column_labels <- paste(symbiont_samples$Strain)
-row_labels <- paste(gene_symbiont_filtered2$genes)
-
-heatmap.2(
-  highly_variable_lcpm,
-  #Rowv = FALSE,
-  #Colv = FALSE,
-  main = "Top 500 most variable genes across samples",
-  ColSideColors = col.Strain,
-  col = rev(morecols(50)),
-  keysize = 2,
-  key.par=list(mgp=c(1, 0.5, 0), mar=c(5, 2, 3, 1)),
-  #lmat = lmat, 
-  #lmat=rbind(c(0, 4, 2), c(0, 1, 3)), lhei=c(2.5, 10), lwid=c(1, 10, 1),
-  trace = "none",
-  scale = "row",
-  labCol = column_labels,
-  #offsetCol = 0.5,
-  ## fix stuff that falls off the image with the following line
-  margins = c(8,2),
-  ## remove junk on side
-  labRow = ""
-)
-
-```
-
-  
-
-  
 ## Plotting, plot by gene and by exon.
 ```{r, fig.align='center'}
 
@@ -968,12 +786,10 @@ plot_symbiont_gene("SymbC1.scaffold7634.1.m1")  # Superoxide dismutase, SS8 UNIQ
 #plot_symbiont_gene("SymbC1.scaffold2650.2.m1")  #	E3 ubiquitin- ligase HERC1
 #plot_symbiont_gene("SymbC1.scaffold12561.1.m1") #	Cytochrome mitochondrial
 plot_symbiont_gene("SymbC1.scaffold9320.1.m1")  # Heat shock 70 kDa 
-
-
-plot_symbiont_gene("SymbC1.scaffold8083.1.m1")  
-
-dev.off() 
-
+plot_symbiont_gene("SymbC1.scaffold6940.1.m1")  # ribulose 1,5-bisphosphate carboxylase oxygenase form
+plot_symbiont_gene("SymbC1.scaffold6940.2.m1")  # ribulose 1,5-bisphosphate carboxylase oxygenase form
+plot_symbiont_gene("SymbC1.scaffold9010.1.m1")  # ribulose bisphosphate chloroplastic
+plot_symbiont_gene("SymbC1.scaffold23876.1.m1") # ribulose bisphosphate carboxylase	
 
 
 
@@ -1006,7 +822,6 @@ plot_symbiont_gene_by_exon("SymbC1.scaffold1787.3.m1")    # hsp organising prote
 plot_symbiont_gene_by_exon("SymbC1.scaffold2730.1.m1")  
 
 
-dev.off() 
 
 ```
 
@@ -1019,160 +834,37 @@ dev.off()
 code silenced
 ```{r, eval=FALSE}
 
-# Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-symbiont_SS8_intercept_VS_all <- topTable(fit.cont1_symbiont, n=Inf) %>% write.table(, file="symbiont_SS8_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-#
 # Specific pairwise comparisons. What separates SS8 from respective strains?
 library(openxlsx)
 SampleGroup<-"symbiont_SS8_intercept_VS_pairwise"
 Title <- paste(SampleGroup,"DGE-Table")
 FileName <- paste(Title,".xlsx")
-limma.resA <- topTable(fit.cont1_symbiont,coef="SS8.vs.WT10",sort.by="p",n="Inf")
-limma.resB <- topTable(fit.cont1_symbiont,coef="SS8.vs.SS3",sort.by="p",n="Inf")
-limma.resC <- topTable(fit.cont1_symbiont,coef="SS8.vs.SS5",sort.by="p",n="Inf")
-list_of_datasets_symbiont <- list("SS8.vs.WT10" = limma.resA, "SS8.vs.SS3" = limma.resB, "SS8.vs.SS5" = limma.resC)
+limma.resA <- topTable(fit.cont2_symbiont,coef="SS8.vs.WT10",sort.by="p",n="Inf")
+limma.resB <- topTable(fit.cont2_symbiont,coef="SS3.vs.WT10",sort.by="p",n="Inf")
+limma.resC <- topTable(fit.cont2_symbiont,coef="SS5.vs.WT10",sort.by="p",n="Inf")
+list_of_datasets_symbiont <- list("SS8.vs.WT10" = limma.resA, "SS3.vs.WT10" = limma.resB, "SS5.vs.WT10" = limma.resC)
 write.xlsx(list_of_datasets_symbiont, file=FileName, sep="\t", row.names=TRUE)
-#
-
 #
 # Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
 symbiont_WT10_intercept_VS_all <- topTable(fit.cont2_symbiont, n=Inf) %>% write.table(, file="symbiont_WT10_intercept_VS_all_topTable.csv", sep="\t", quote=F)
 ##
-# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
-write.xlsx(genes_sign_WT10_Intercept_symbiont, file="symbiont_SS8_unique_DGE_expression_list_WT10.xlsx", sheetName="SS_8_vs_WT10_unique", append=TRUE, row.names=FALSE)
-#
-#
-#
-# Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-symbiont_SS3_intercept_VS_all <- topTable(fit.cont3_symbiont, n=Inf) %>% write.table(, file="symbiont_SS3_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-##
-# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
-write.xlsx(genes_sign_SS3_Intercept_symbiont, file="symbiont_SS8_unique_DGE_expression_list_SS3.xlsx", sheetName="SS_8_vs_SS3_unique", append=TRUE, row.names=FALSE)
-#
-#
-#
-# Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-symbiont_SS5_intercept_VS_all <- topTable(fit.cont4_symbiont, n=Inf) %>% write.table(, file="symbiont_SS5_intercept_VS_all_topTable.csv", sep="\t", quote=F)
-#
-# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
-write.xlsx(genes_sign_SS5_Intercept_symbiont, file="symbiont_SS8_unique_DGE_expression_list_SS5.xlsx", sheetName="SS_8_vs_SS5_unique", append=TRUE, row.names=FALSE)
 
-
+# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
+write.xlsx(genes_sign_WT10_Intercept_symbiont, file="symbiont_SS8_unique_DGE_expression_list_WT10_7resp_100M.xlsx", sheetName="SS_8_vs_WT10_unique_4resp_100M", append=TRUE, row.names=FALSE)
+#
 
 ```
  
 <br>
-<br>
-<br>
-  
 
-
-
-
-
-# __3 Next steps__
-
-* Investigate DEXSeq for alternate exon usage
-    - needs to be done
-
-* Cluster expression / WGCNA and plot cluster patterns
-    - needs to be done, Stephen?
-  
-* Symbiont/host interactions
-    - MixOmics package, needs to be done
-    
-* SNP analysis
-
-* Different copies of genes used, alignment and cmparison
-
-
-<br>
 
 ***
 <br><br>
 
 
 
-# __4 Extra Code__
-## Heat map from external matrix
-
-Extra chunk of code to produce heat map from external matrix (silenced).
-```{r, eval=FALSE}
-
-# HEAT MAP FROM IMPORTED MATRIX
-#SampleGroup<-"Host-STAR"
-time<-format(Sys.time(),"%d-%m-%Y")
-#
-# LOAD MATRIX
-# Only heat stress realted genes
-highly_variable_lcpm_NEW <- read.delim("data/Heatmaps/Host-NewFilter-Apoptosis_SS3_2.txt", row.names=1)
-highly_variable_lcpm_NEWNEW <- as.matrix(highly_variable_lcpm_NEW, mode='any')
-#
-#
-# SELECTION IN R DOES NOT WORK - see var_genes file is a value with attributes, not sure how to convert TEST2NEW to it in order the subsetting would work..
-#library(dplyr)
-#TEST <- topTable(fit.cont, n=Inf, coef="SS8.vs.WT10")
-#TEST2 <- subset(TEST, select = c(5))
-#head(TEST2)
-#TEST2NEW <- as.matrix(TEST2, mode='numeric')
-#select_var_NEW <- names(sort(TEST2NEW, decreasing = TRUE)) [1:500]
-#head(select_var_NEW)
-#
-# Make new heat map
-TitleFile <- paste(SampleGroup,"Apop")
-Title <- paste(SampleGroup,"- stress realted genes - sign <0.0001 genes across all samples")
-FileName <- paste(TitleFile,time,".jpg")
-jpeg(file=FileName, width = 4000, height = 3280, res = 450)
-par(mfrow = c(1,1))
-#
-lmat = rbind(0:3,2:1,4:4)
-#lmat = rbind(c(0,3),c(2,1),c(0,4))
-lwid = c(1.5,4)
-lhei = c(1.5,4,1)
-# lmat
-#
-
-mypalette <- brewer.pal(11, "RdYlBu")
-morecols <- colorRampPalette(mypalette)
-col.cell <- c("purple", "orange")[host_samples$CellType]
-column_labels <- paste(host_samples$CellType, host_samples$Strain, sep = ".")
-column_labels <- paste(host_samples$SampleName)
-
-#
-heatmap.2(
-  highly_variable_lcpm_NEWNEW,
-  Rowv = FALSE,
-  Colv = FALSE,
-  col = rev(morecols(50)),
-  trace = "none",
-  key.title = NA,
-  keysize = 1,
-  key.par=list(mgp=c(1, 0.5, 0), mar=c(5, 2, 2, 1)),
-  #lmat = lmat, 
-  #lmat=rbind(c(0, 4, 2), c(0, 1, 3)), lhei=c(2.5, 10), lwid=c(1, 10, 1),
-  main = " ",
-  ColSideColors = col.cell,
-  scale = "row",
-  labCol = column_labels,
-  ## fix stuff that falls off the image with the following line
-  margins = c(8,32)
-  ## remove junk on side
-  #labRow = ""
-)
-title(Title, line = +3.0, adj = +0.4)
-dev.off() 
-
-```
-<br><br>
-
-
-
-
-
-
-
+# __3 Additional Code__
 ## MDS Statistics with Adonis - Host
-Test Code - MDS stats Adonis
 ```{r, fig.align='center'}
 library(limma)
 library(edgeR)
@@ -1190,17 +882,6 @@ library(ggplot2)
 
 #
 ######## MDS-WITH ADONIS
-######## MDS-WITH ADONIS
-######## MDS-WITH ADONIS
-######## MDS-WITH ADONIS
-######## MDS-WITH ADONIS
-######## MDS-WITH ADONIS
-#
-## MDS PLOT FROM ANY MATRIX
-## MDS PLOT FROM ANY MATRIX
-## MDS PLOT FROM ANY MATRIX
-
-
 # DIFFERENT INPUT - USE logCPM on counts before voom
 #head(gene_host_filtered1$counts)
 #head(logcpmtmm)
@@ -1228,10 +909,12 @@ conditions=data.frame(cbind(CellType,Strain))
 #conditions
 #
 #
+
 # Calculate distances etc..
-dds.pcoa3=pcoa(vegdist(t(logcounts_host),method="euclidean")/1000)
+dds.pcoa3_host=pcoa(vegdist(t(logcounts_host),method="euclidean")/1000)
 # export values
-scores3=dds.pcoa3$vectors
+scores3_host=dds.pcoa3_host$vectors
+
 #
 #head(scores3)
 #
@@ -1240,26 +923,25 @@ SampleGroup<-"Host-STAR"
 #SampleGroup<-"Symb-STAR"
 time<-format(Sys.time(),"%d-%m-%Y")
 #
-Title <- paste(SampleGroup,"MDS-logcounts-euclidean")
-FileName <- paste(Title,time,".jpg")
-jpeg(file=FileName, width = 2020, height = 1080, res = 200)
+#Title <- paste(SampleGroup,"MDS-logcounts-euclidean")
+#FileName <- paste(Title,time,".jpg")
+#jpeg(file=FileName, width = 2020, height = 1080, res = 200)
 
-par(mfrow=c(1,2))
+#par(mfrow=c(1,2))
 #
 
-plot(scores3[,1], scores3[,2], col="Black", bg=c("Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","limegreen","limegreen","limegreen","limegreen","limegreen","Red","Red","Red","Red","Red","Red"),pch=c(21,21,21,21))
+plot(scores3_host[,1], scores3_host[,2], col="Black", bg=c("Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","orange","orange","orange","orange","orange","Blue","Blue","Blue","Blue","Blue","Blue"),pch=c(21,21,21,21))
 # plot(scores3[,1], scores3[,2],col=as.numeric(as.factor(Strain)))
-ordispider(scores3,CellType,label=T)
-ordiellipse(scores3,CellType)
+ordispider(scores3_host,CellType,label=T)
+ordiellipse(scores3_host,CellType)
 #
 Title <- paste(SampleGroup,"MDS-Plot")
 title(Title)
 
-
-plot(scores3[,1], scores3[,2], col="Black", bg=c("Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","limegreen","limegreen","limegreen","limegreen","limegreen","Red","Red","Red","Red","Red","Red"),pch=c(21,21,21,21))
+plot(scores3_host[,1], scores3_host[,2], col="Black", bg=c("Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","orange","orange","orange","orange","orange","Blue","Blue","Blue","Blue","Blue","Blue"),pch=c(21,21,21,21))
 # plot(scores3[,1], scores3[,2],col=as.numeric(as.factor(Strain)))
-ordispider(scores3,Strain,label=T)
-ordiellipse(scores3,Strain)
+ordispider(scores3_host,Strain,label=T)
+ordiellipse(scores3_host,Strain)
 #
 Title <- paste(SampleGroup,"MDS-Plot")
 #
@@ -1268,13 +950,9 @@ title(Title)
 dev.off() 
 
 ## interactive 3d plot, to confirm
-## interactive 3d plot, to confirm
-## interactive 3d plot, to confirm
 # plot3d(scores3[,1], scores3[,2],scores3[,3],col=as.numeric(as.factor(CellType)),type="s",radius=0.005)
 
 ##
-## interactive 3d plot, to confirm
-## interactive 3d plot, to confirm
 ## interactive 3d plot, to confirm
 # plot3d(scores3[,1], scores3[,2],scores3[,3],col=as.numeric(as.factor(Strain)),type="s",radius=0.005)
 
@@ -1282,8 +960,6 @@ dev.off()
 ##
 ##
 
-## STATISTIC TESTS - Adonis
-## STATISTIC TESTS - Adonis
 ## STATISTIC TESTS - Adonis
 ##
 Title <- paste(SampleGroup,"Adonis")
@@ -1297,7 +973,7 @@ Title <- paste(SampleGroup,"TukeyHSD")
 FileName <- paste("5-",Title,time,".txt")
 ad_host=adonis(t(logcounts_host)~Strain,data=conditions,method="euclidean")
 ad_host
-pco1=scores3[,1]
+pco1=scores3_host[,1]
 TukeyHSD(aov(pco1~Strain))
 #
 #capture.output(TukeyHSD(aov(pco1~Strain)),file=FileName)
@@ -1310,9 +986,7 @@ TukeyHSD(aov(pco1~Strain))
 
 
 
-
 ## MDS Statistics with Adonis - Symbiont
-Test Code - MDS stats Adonis
 ```{r, fig.align='center'}
 library(limma)
 library(edgeR)
@@ -1330,14 +1004,7 @@ library(ggplot2)
 
 #
 ######## MDS-WITH ADONIS
-######## MDS-WITH ADONIS
-######## MDS-WITH ADONIS
-######## MDS-WITH ADONIS
-######## MDS-WITH ADONIS
-######## MDS-WITH ADONIS
 #
-## MDS PLOT FROM ANY MATRIX
-## MDS PLOT FROM ANY MATRIX
 ## MDS PLOT FROM ANY MATRIX
 
 # DIFFERENT INPUT - USE logCPM on counts before voom
@@ -1366,10 +1033,12 @@ Strain=as.character(symbiont_samples$Strain)
 conditions=data.frame(cbind(CellType,Strain))
 #conditions
 #
+
 # Calculate distances etc..
-dds.pcoa3=pcoa(vegdist(t(logcounts_symbiont),method="euclidean")/1000)
+dds.pcoa3_symbiont=pcoa(vegdist(t(logcounts_symbiont),method="euclidean")/1000)
 # export values
-scores3=dds.pcoa3$vectors
+scores3_symbiont=dds.pcoa3_symbiont$vectors
+
 #
 # head(scores3)
 #
@@ -1383,32 +1052,29 @@ time<-format(Sys.time(),"%d-%m-%Y")
 #jpeg(file=FileName, width = 2020, height = 1080, res = 200)
 #par(mfrow=c(1,2))
 #
-plot(scores3[,1], scores3[,2], col="Black", bg=c("Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","limegreen","limegreen","limegreen","limegreen","limegreen","Red","Red","Red","Red","Red","Red"),pch=c(21,21,21,21))
+plot(scores3_symbiont[,1], scores3_symbiont[,2], col="Black", bg=c("Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","orange","orange","orange","orange","orange","Blue","Blue","Blue","Blue","Blue","Blue"),pch=c(21,21,21,21))
 # plot(scores3[,1], scores3[,2],col=as.numeric(as.factor(Strain)))
-ordispider(scores3,CellType,label=T)
-ordiellipse(scores3,CellType)
+ordispider(scores3_symbiont,CellType,label=T)
+ordiellipse(scores3_symbiont,CellType)
 #
 Title <- paste(SampleGroup,"MDS-Plot")
 title(Title)
 #
-plot(scores3[,1], scores3[,2], col="Black", bg=c("Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","limegreen","limegreen","limegreen","limegreen","limegreen","Red","Red","Red","Red","Red","Red"),pch=c(21,21,21,21))
+plot(scores3_symbiont[,1], scores3_symbiont[,2], col="Black", bg=c("Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","Black","orange","orange","orange","orange","orange","Blue","Blue","Blue","Blue","Blue","Blue"),pch=c(21,21,21,21))
 # plot(scores3[,1], scores3[,2],col=as.numeric(as.factor(Strain)))
-ordispider(scores3,Strain,label=T)
-ordiellipse(scores3,Strain)
+ordispider(scores3_symbiont,Strain,label=T)
+ordiellipse(scores3_symbiont,Strain)
 #
 Title <- paste(SampleGroup,"MDS-Plot")
 title(Title)
+
 #
 # dev.off() 
 
 ## interactive 3d plot, to confirm
-## interactive 3d plot, to confirm
-## interactive 3d plot, to confirm
 # plot3d(scores3[,1], scores3[,2],scores3[,3],col=as.numeric(as.factor(CellType)),type="s",radius=0.005)
 
 ##
-## interactive 3d plot, to confirm
-## interactive 3d plot, to confirm
 ## interactive 3d plot, to confirm
 # plot3d(scores3[,1], scores3[,2],scores3[,3],col=as.numeric(as.factor(Strain)),type="s",radius=0.005)
 
@@ -1416,8 +1082,6 @@ title(Title)
 ##
 ##
 
-## STATISTIC TESTS - Adonis
-## STATISTIC TESTS - Adonis
 ## STATISTIC TESTS - Adonis
 ##
 Title <- paste(SampleGroup,"Adonis")
@@ -1432,7 +1096,7 @@ Title <- paste(SampleGroup,"TukeyHSD")
 FileName <- paste("5-",Title,time,".txt")
 ad_symbiont=adonis(t(logcounts_symbiont)~Strain,data=conditions,method="euclidean")
 ad_symbiont
-pco1=scores3[,1]
+pco1=scores3_symbiont[,1]
 TukeyHSD(aov(pco1~Strain))
 #
 #capture.output(TukeyHSD(aov(pco1~Strain)),file=FileName)
@@ -1441,4 +1105,284 @@ TukeyHSD(aov(pco1~Strain))
 
 
 
+## Export graphics
+MDS plot and heatmap export
+```{r, eval=FALSE}
+#Export graphics
+
+SampleGroup <-"31C"
+Title <- paste(SampleGroup,"MDS-logcounts-euclidean_2")
+time<-format(Sys.time(),"%d-%m-%Y")
+
+FileName <- paste(Title,time,".jpg")
+jpeg(file=FileName, width = 2020, height = 1020, res = 200)
+par(mfrow=c(1,2))
+#
+plot(scores3_host[,1], scores3_host[,2], col="Black", xlim = c(-0.05, 0.07), ylim = c(-0.042, 0.042), bg=c("grey","grey","grey","grey","grey","grey","Black","Black","Black","Black","Black","Black","coral","coral","coral","coral","coral","Blue","Blue","Blue","Blue","Blue","Blue"),pch=c(21,21,21,21))
+# plot(scores3[,1], scores3[,2],col=as.numeric(as.factor(Strain)))
+ordispider(scores3_host,Strain,label=F)
+ordiellipse(scores3_host,Strain)
+#
+Title <- paste(SampleGroup,"MDS-Plot")
+title(Title)
+plot(scores3_symbiont[,1], scores3_symbiont[,2], col="Black", xlim = c(-0.05, 0.07), ylim = c(-0.042, 0.042), bg=c("grey","grey","grey","grey","grey","grey","Black","Black","Black","Black","Black","Black","coral","coral","coral","coral","coral","Blue","Blue","Blue","Blue","Blue","Blue"),pch=c(21,21,21,21))
+# plot(scores3[,1], scores3[,2],col=as.numeric(as.factor(Strain)))
+ordispider(scores3_symbiont,Strain,label=F)
+ordiellipse(scores3_symbiont,Strain)
+#
+Title <- paste(SampleGroup,"MDS-Plot")
+#
+title(Title)
+#
+dev.off() 
+
+par(mfrow=c(1,2))
+
+Title <- paste(SampleGroup,"Heat-Map-Host")
+FileName <- paste(Title,time,".jpg")
+jpeg(file=FileName, width = 1020, height = 1020, res = 200)
+par(mfrow=c(1,2))
+expression_heatmap_symbiont
+dev.off() 
+
+Title <- paste(SampleGroup,"Heat-Map-Host")
+FileName <- paste(Title,time,".jpg")
+jpeg(file=FileName, width = 1020, height = 1020, res = 200)
+par(mfrow=c(1,2))
+expression_heatmap_host
+dev.off() 
+
+```
+
+
+
+Heat map - Go categories
+```{r, eval=FALSE}
+
+library(limma)
+library(edgeR)
+library(Glimma)
+library(gplots)
+library(org.Mm.eg.db)
+library(RColorBrewer)
+library(BiasedUrn)
+library(openxlsx)
+library(vegan)
+library(rgl)
+library(ape)
+library(openxlsx)
+library(ggplot2)
+
+
+highly_variable_lcpm_NEW <- read.delim("data/GO_Cats_heatmap.txt", row.names=1)
+highly_variable_lcpm_NEWNEW <- as.matrix(highly_variable_lcpm_NEW, mode='any')
+
+#
+time<-format(Sys.time(),"%d-%m-%Y")
+Title <- paste("Selected Cladocopium strains vs wild type strain")
+FileName <- paste(Title,time,".jpg")
+#jpeg(file=FileName, width = 2220, height = 1280, res = 200)
+#jpeg(file=FileName, width = 2500, height = 3000, res = 220)
+#par(mfrow = c(1,1))
+#
+
+#
+#mypalette <- brewer.pal(5, "RdGyBu")
+#morecols <- colorRampPalette(mypalette)
+color.palette  <- c(colorRampPalette(c("blue", "lightgrey", "red"))(n=20))
+col.cell <- c("purple", "orange")[symbiont_samples$CellType]
+colsep = "White"
+rowsep = "White"
+br <- seq(-7, 3, by = 0.25) 
+#PVal <- read.delim("data/GO_Cats_heatmap-values.txt", row.names=1)
+PVal <- read.delim("data/GO_Cats_heatmap-values.txt", row.names=1)
+column_labels <- paste(colnames(highly_variable_lcpm_NEW)) #$CellType, symbiont_samples$Strain, sep = ".")
+#col_breaks = c(seq(0.001,0.2,length=100), seq(0.3,0.4,length=100), seq(0.5,0.6,length=100))
+#column_labels <- paste(sampleinfo$SampleName)
+#
+heatmap.2(
+  highly_variable_lcpm_NEWNEW,
+  #Rowv = FALSE,
+  #Colv = FALSE,
+  #col = rev(morecols(9)),
+  #col=bluered(256),
+  col = color.palette,
+  #breaks = col_breaks, 
+  #Colv = "NA", 
+  na.color = "White",
+  na.rm=TRUE,
+  trace = "none",
+  cellnote=as.matrix(PVal), notecex=1.6,
+  notecol="black",
+  main = "GO Categories",
+  density.info=c("none"), #,"density","none"),
+  keysize=0.8,
+  key.title = "",
+  key.xlab = "Log p-value",
+  key.ylab = "Counts",
+  #lhei=c(1,3.5), lwid=c(1,5),
+  #ColSideColors = col.cell,
+  scale = "none",
+  labCol = column_labels,
+  ## fix stuff that falls off the image with the following line
+  margins = c(8,40),
+  #breaks = br
+  #colsep,
+  symm=F,symkey=F,symbreaks=T,
+  #breaks=seq(-4, 4),
+  cexRow=1.6,cexCol=1.7, 
+  #rowsep,
+  rowsep=c(1, 2, 3, 4),
+  colsep=c(1, 2, 3),
+  sepcolor="White"
+  #sepwidth=c(0.05,0.05)
+  #sepwidth=c(0.05,0.05)
+  ## remove junk on side
+  #labRow = ""
+)
+title(Title, line = +3.3)
+
+dev.off() 
+
+
+
+
+
+
+highly_variable_lcpm_NEW_HOST <- read.delim("data/GO_Cats_heatmap_host.txt", row.names=1)
+highly_variable_lcpm_NEWNEW_HOST <- as.matrix(highly_variable_lcpm_NEW_HOST, mode='any')
+
+#
+time<-format(Sys.time(),"%d-%m-%Y")
+Title <- paste("Coral larvae with selected Cladocopium strains vs larvae with wild type")
+FileName <- paste(Title,time,".jpg")
+#jpeg(file=FileName, width = 2500, height = 3000, res = 220)
+#par(mfrow = c(1,1))
+#
+#
+#mypalette <- brewer.pal(5, "RdGyBu")
+#morecols <- colorRampPalette(mypalette)
+color.palette  <- c(colorRampPalette(c("blue", "lightgrey", "red"))(n=30))
+col.cell <- c("purple", "orange")[symbiont_samples$CellType]
+colsep = "White"
+rowsep = "White"
+br <- seq(-7, 3, by = 0.25) 
+#PVal <- read.delim("data/GO_Cats_heatmap-values.txt", row.names=1)
+PVal <- read.delim("data/GO_Cats_heatmap-values-host.txt", row.names=1)
+column_labels <- paste(colnames(highly_variable_lcpm_NEW_HOST)) #$CellType, symbiont_samples$Strain, sep = ".")
+#col_breaks = c(seq(0.001,0.2,length=100), seq(0.3,0.4,length=100), seq(0.5,0.6,length=100))
+#column_labels <- paste(sampleinfo$SampleName)
+#
+heatmap.2(
+  highly_variable_lcpm_NEWNEW_HOST,
+  #Rowv = FALSE,
+  #Colv = FALSE,
+  #col = rev(morecols(9)),
+  #col=bluered(256),
+  col = color.palette,
+  #breaks = col_breaks, 
+  #Colv = "NA", 
+  na.color = "White",
+  na.rm=TRUE,
+  trace = "none",
+  cellnote=as.matrix(PVal), notecex=1.6,
+  notecol="black",
+  main = "GO Categories",
+  density.info=c("none"), #,"density","none"),
+  keysize=0.6,
+  key.title = "",
+  key.xlab = "Log p-value",
+  key.ylab = "Counts",
+  lhei=c(1,10), lwid=c(1,4.5),
+  #ColSideColors = col.cell,
+  scale = "none",
+  labCol = column_labels,
+  ## fix stuff that falls off the image with the following line
+  margins = c(8,40),
+  #breaks = br
+  #colsep,
+  symm=F,symkey=F,symbreaks=T,
+  #breaks=seq(-4, 4),
+  cexRow=1.7,cexCol=1.9, 
+  #rowsep,
+  rowsep=c(1:28),
+  colsep=c(1, 2, 3),
+  sepcolor="White"
+  #sepwidth=c(0.05,0.05)
+  #sepwidth=c(0.05,0.05)
+  ## remove junk on side
+  #labRow = ""
+)
+title(Title, line = +3.3)
+
+dev.off() 
+
+
+
+
+#
+time<-format(Sys.time(),"%d-%m-%Y")
+Title <- paste("Selected Cladocopium strains vs wild type strains")
+FileName <- paste(Title,time,".jpg")
+#jpeg(file=FileName, width = 2500, height = 3000, res = 220)
+#par(mfrow = c(1,1))
+#
+#
+#mypalette <- brewer.pal(5, "RdGyBu")
+#morecols <- colorRampPalette(mypalette)
+color.palette  <- c(colorRampPalette(c("blue", "lightgrey", "red"))(n=30))
+col.cell <- c("purple", "orange")[symbiont_samples$CellType]
+colsep = "White"
+rowsep = "White"
+br <- seq(-7, 3, by = 0.25) 
+#PVal <- read.delim("data/GO_Cats_heatmap-values.txt", row.names=1)
+PVal <- read.delim("data/GO_Cats_heatmap-values.txt", row.names=1)
+column_labels <- paste(colnames(highly_variable_lcpm_NEW)) #$CellType, symbiont_samples$Strain, sep = ".")
+#col_breaks = c(seq(0.001,0.2,length=100), seq(0.3,0.4,length=100), seq(0.5,0.6,length=100))
+#column_labels <- paste(sampleinfo$SampleName)
+#
+heatmap.2(
+  highly_variable_lcpm_NEWNEW,
+  #Rowv = FALSE,
+  #Colv = FALSE,
+  #col = rev(morecols(9)),
+  #col=bluered(256),
+  col = color.palette,
+  #breaks = col_breaks, 
+  #Colv = "NA", 
+  na.color = "White",
+  na.rm=TRUE,
+  trace = "none",
+  cellnote=as.matrix(PVal), notecex=1.6,
+  notecol="black",
+  main = "GO Categories",
+  density.info=c("none"), #,"density","none"),
+  keysize=0.6,
+  key.title = "",
+  key.xlab = "Log p-value",
+  key.ylab = "Counts",
+  lhei=c(1,10), lwid=c(1,4.5),
+  #ColSideColors = col.cell,
+  scale = "none",
+  labCol = column_labels,
+  ## fix stuff that falls off the image with the following line
+  margins = c(66.4,40),
+  #breaks = br
+  #colsep,
+  symm=F,symkey=F,symbreaks=T,
+  #breaks=seq(-4, 4),
+  cexRow=1.7,cexCol=1.9, 
+  #rowsep,
+  rowsep=c(1:28),
+  colsep=c(1, 2, 3),
+  sepcolor="White"
+  #sepwidth=c(0.05,0.05)
+  #sepwidth=c(0.05,0.05)
+  ## remove junk on side
+  #labRow = ""
+)
+title(Title, line = +3.3)
+
+dev.off() 
+```
 
