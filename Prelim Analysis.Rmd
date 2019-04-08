@@ -255,9 +255,8 @@ expression_heatmap_host <- normalised_DE_gene_expression_host %>%
   geom_tile() +
   scale_fill_gradient2(low = "#0073ff", high = "#ff8c00") +
   theme_bw() +
-  #theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
-  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) + #Text
   scale_x_discrete(labels = host_samples$Strain %>% str_remove("Strain")) +
+  scale_y_discrete(labels = normalised_DE_gene_expression_host %>% group_by(gene, Annotation) %>% summarise() %>% arrange(clustering_host$order) %>% .$Annotation)
   xlab("Sample Strain")
 #
 expression_heatmap_host
@@ -279,7 +278,6 @@ DE_calls_host <- any_DE_genes_host %>%
   scale_fill_manual(values = c("blue", "white","red"))
 #
 cowplot::plot_grid(DE_calls_host, expression_heatmap_host + ylab(NULL), align = "v", rel_widths = c(1,5), axis = "tb")
-
 
 ```
 <br><br>
