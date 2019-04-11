@@ -792,7 +792,6 @@ plot_symbiont_gene("SymbC1.scaffold9010.1.m1")  # ribulose bisphosphate chloropl
 plot_symbiont_gene("SymbC1.scaffold23876.1.m1") # ribulose bisphosphate carboxylase	
 
 
-
 ## Plot by exon, according to annotation
 plot_symbiont_gene_by_exon <- function(gene) {
   symbiont_v$E %>% 
@@ -834,9 +833,9 @@ plot_symbiont_gene_by_exon("SymbC1.scaffold2730.1.m1")
 code silenced
 ```{r, eval=FALSE}
 
-# Specific pairwise comparisons. What separates SS8 from respective strains?
+# Specific pairwise comparisons. What separates WT10 from respective strains?
 library(openxlsx)
-SampleGroup<-"symbiont_SS8_intercept_VS_pairwise"
+SampleGroup<-"symbiont_WT10_intercept_VS_pairwise"
 Title <- paste(SampleGroup,"DGE-Table")
 FileName <- paste(Title,".xlsx")
 limma.resA <- topTable(fit.cont2_symbiont,coef="SS8.vs.WT10",sort.by="p",n="Inf")
@@ -850,7 +849,7 @@ symbiont_WT10_intercept_VS_all <- topTable(fit.cont2_symbiont, n=Inf) %>% write.
 ##
 
 # USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
-write.xlsx(genes_sign_WT10_Intercept_symbiont, file="symbiont_SS8_unique_DGE_expression_list_WT10_7resp_100M.xlsx", sheetName="SS_8_vs_WT10_unique_4resp_100M", append=TRUE, row.names=FALSE)
+write.xlsx(genes_sign_WT10_Intercept_symbiont, file="symbiont_unique_DGE_expression_list.xlsx", sheetName="SS8_vs_WT10_unique", append=TRUE, row.names=FALSE)
 #
 
 ```
@@ -1182,8 +1181,8 @@ time<-format(Sys.time(),"%d-%m-%Y")
 Title <- paste("Selected Cladocopium strains vs wild type strain")
 FileName <- paste(Title,time,".jpg")
 #jpeg(file=FileName, width = 2220, height = 1280, res = 200)
-#jpeg(file=FileName, width = 2500, height = 3000, res = 220)
-#par(mfrow = c(1,1))
+jpeg(file=FileName, width = 2500, height = 3000, res = 220)
+par(mfrow = c(1,1))
 #
 
 #
@@ -1241,7 +1240,6 @@ heatmap.2(
   #labRow = ""
 )
 title(Title, line = +3.3)
-
 dev.off() 
 
 
@@ -1256,8 +1254,8 @@ highly_variable_lcpm_NEWNEW_HOST <- as.matrix(highly_variable_lcpm_NEW_HOST, mod
 time<-format(Sys.time(),"%d-%m-%Y")
 Title <- paste("Coral larvae with selected Cladocopium strains vs larvae with wild type")
 FileName <- paste(Title,time,".jpg")
-#jpeg(file=FileName, width = 2500, height = 3000, res = 220)
-#par(mfrow = c(1,1))
+jpeg(file=FileName, width = 2500, height = 3000, res = 220)
+par(mfrow = c(1,1))
 #
 #
 #mypalette <- brewer.pal(5, "RdGyBu")
@@ -1314,7 +1312,6 @@ heatmap.2(
   #labRow = ""
 )
 title(Title, line = +3.3)
-
 dev.off() 
 
 
@@ -1324,8 +1321,8 @@ dev.off()
 time<-format(Sys.time(),"%d-%m-%Y")
 Title <- paste("Selected Cladocopium strains vs wild type strains")
 FileName <- paste(Title,time,".jpg")
-#jpeg(file=FileName, width = 2500, height = 3000, res = 220)
-#par(mfrow = c(1,1))
+jpeg(file=FileName, width = 2500, height = 3000, res = 220)
+par(mfrow = c(1,1))
 #
 #
 #mypalette <- brewer.pal(5, "RdGyBu")
@@ -1382,7 +1379,6 @@ heatmap.2(
   #labRow = ""
 )
 title(Title, line = +3.3)
-
 dev.off() 
 ```
 
