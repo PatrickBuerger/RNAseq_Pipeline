@@ -224,11 +224,11 @@ any_DE_genes_host <- decideTests(fit.cont1_host, lfc=1) %>%
   as.data.frame() %>% 
   bind_cols(fit.cont2_host$genes) %>% 
   filter_if(~ is.numeric(.), any_vars(. != 0))
-
+#
 # Separate out ones called as DE in *all* strains as well
 all_DE_genes_host <- any_DE_genes_host%>% 
   filter_if(~ is.numeric(.), all_vars(. != 0))
-
+#
 ## Heatmap of DE genes
 # Normalise expression per-gene
 normalised_DE_gene_expression_host <- gene_host_v[gene_host_v$genes$gene %in% all_DE_genes_host$gene, ] %>% 
@@ -238,7 +238,6 @@ normalised_DE_gene_expression_host <- gene_host_v[gene_host_v$genes$gene %in% al
   group_by(gene) %>%
   mutate(scaled_log2cpm = scale(log2cpm)) %>% 
   ungroup
-
 #
 # Cluster to show patterns
 clustering_host <- normalised_DE_gene_expression_host %>% 
@@ -246,20 +245,21 @@ clustering_host <- normalised_DE_gene_expression_host %>%
   spread(SampleName, scaled_log2cpm) %>% 
   dplyr::select(-gene) %>% 
   cluster::agnes()
-
 #
 # Plot it
-expression_heatmap_host <- normalised_DE_gene_expression_host %>% 
+expression_heatmap_host_top <- normalised_DE_gene_expression_host %>% 
   mutate(gene = factor(gene, levels = gene %>% unique %>% .[clustering_host$order] )) %>% 
   ggplot(aes(x=SampleName, y = gene, fill = scaled_log2cpm)) +
   geom_tile() +
   scale_fill_gradient2(low = "#0073ff", high = "#ff8c00") +
   theme_bw() +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
+  #theme(axis.ticks.y = element_blank(), axis.text.y = element_text(size=8)) + # With Text
   scale_x_discrete(labels = host_samples$Strain %>% str_remove("Strain")) +
-  scale_y_discrete(labels = normalised_DE_gene_expression_host %>% group_by(gene, Annotation) %>% summarise() %>% arrange(clustering_host$order) %>% .$Annotation)
   xlab("Sample Strain")
 #
-expression_heatmap_host
+expression_heatmap_host_top
+#
 
 
 #Can also include the actual DE calls
@@ -277,7 +277,7 @@ DE_calls_host <- any_DE_genes_host %>%
   xlab("DE Calls") + 
   scale_fill_manual(values = c("blue", "white","red"))
 #
-cowplot::plot_grid(DE_calls_host, expression_heatmap_host + ylab(NULL), align = "v", rel_widths = c(1,5), axis = "tb")
+cowplot::plot_grid(DE_calls_host, expression_heatmap_host_top + ylab(NULL), align = "v", rel_widths = c(1,5), axis = "tb")
 
 ```
 <br><br>
@@ -315,10 +315,10 @@ fit.cont1host_TopSign <- topTable(fit.cont1_host, number = 500)
 
 ####
 # Data feed for heat map, change as required..
-heatmap.data <- fit.cont1host_heat
+heatmap.data.host <- fit.cont1host_TopSign
 #
 
-normalised_DE_gene_expression_host <- gene_host_v[gene_host_v$genes$gene %in% heatmap.data$gene, ] %>% 
+normalised_DE_gene_expression_host <- gene_host_v[gene_host_v$genes$gene %in% heatmap.data.host$gene, ] %>% 
   as.data.frame() %>% 
   gather(SampleName, log2cpm, -gene, -Annotation) %>% 
   left_join(host_samples) %>% 
@@ -334,18 +334,18 @@ clustering_host <- normalised_DE_gene_expression_host %>%
   cluster::agnes()
 #
 # Plot it
-expression_heatmap_host <- normalised_DE_gene_expression_host %>% 
+expression_heatmap_host_Topsign <- normalised_DE_gene_expression_host %>% 
   mutate(gene = factor(gene, levels = gene %>% unique %>% .[clustering_host$order] )) %>% 
   ggplot(aes(x=SampleName, y = gene, fill = scaled_log2cpm)) +
   geom_tile() +
   scale_fill_gradient2(low = "#0073ff", high = "#ff8c00") +
   theme_bw() +
   #theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
-  theme(axis.ticks.y = element_blank(), axis.text.y = element_text(size=8)) + # With Text
   scale_x_discrete(labels = host_samples$Strain %>% str_remove("Strain")) +
+  scale_y_discrete(labels = normalised_DE_gene_expression_host %>% group_by(gene, Annotation) %>% summarise() %>% arrange(clustering_host$order) %>% .$Annotation)
   xlab("Sample Strain")
 #
-expression_heatmap_host
+expression_heatmap_host_Topsign
 
 
 
@@ -631,11 +631,11 @@ any_DE_genes_symbiont <- decideTests(fit.cont1_symbiont) %>%
   as.data.frame() %>% 
   bind_cols(fit.cont2_symbiont$genes) %>% 
   filter_if(~ is.numeric(.), any_vars(. != 0))
-
+#
 # Separate out ones called as DE in *all* strains as well
 all_DE_genes_symbiont <- any_DE_genes_symbiont%>% 
   filter_if(~ is.numeric(.), all_vars(. != 0))
-
+#
 ## Heatmap of DE genes
 # Normalise expression per-gene
 normalised_DE_gene_expression_symbiont <- gene_symbiont_v[gene_symbiont_v$genes$gene %in% all_DE_genes_symbiont$gene, ] %>% 
@@ -645,7 +645,6 @@ normalised_DE_gene_expression_symbiont <- gene_symbiont_v[gene_symbiont_v$genes$
   group_by(gene) %>%
   mutate(scaled_log2cpm = scale(log2cpm)) %>% 
   ungroup
-
 #
 # Cluster to show patterns
 clustering_symbiont <- normalised_DE_gene_expression_symbiont %>% 
@@ -653,10 +652,9 @@ clustering_symbiont <- normalised_DE_gene_expression_symbiont %>%
   spread(SampleName, scaled_log2cpm) %>% 
   dplyr::select(-gene) %>% 
   cluster::agnes()
-
 #
 # Plot it
-expression_heatmap_symbiont <- normalised_DE_gene_expression_symbiont %>% 
+expression_heatmap_symbiont_top <- normalised_DE_gene_expression_symbiont %>% 
   mutate(gene = factor(gene, levels = gene %>% unique %>% .[clustering_symbiont$order] )) %>% 
   ggplot(aes(x=SampleName, y = gene, fill = scaled_log2cpm)) +
   geom_tile() +
@@ -667,7 +665,7 @@ expression_heatmap_symbiont <- normalised_DE_gene_expression_symbiont %>%
   scale_x_discrete(labels = symbiont_samples$Strain %>% str_remove("Strain")) +
   xlab("Sample Strain")
 #
-expression_heatmap_symbiont
+expression_heatmap_symbiont_top
 
 
 #Can also include the actual DE calls
@@ -685,7 +683,7 @@ DE_calls_symbiont <- any_DE_genes_symbiont %>%
   xlab("DE Calls") + 
   scale_fill_manual(values = c("blue", "white","red"))
 #
-cowplot::plot_grid(DE_calls_symbiont, expression_heatmap_symbiont + ylab(NULL), align = "v", rel_widths = c(1,5), axis = "tb")
+cowplot::plot_grid(DE_calls_symbiont, expression_heatmap_symbiont_top + ylab(NULL), align = "v", rel_widths = c(1,5), axis = "tb")
 
 
 ```
@@ -704,12 +702,8 @@ Filter genes according to annotation. Which are heat stress related genes that a
 fit.cont1symbiont_heat <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[H|h]eat|[S|s]uperoxide|[G|g]lutathione|[C|c]haperone|[P|p]eroxidase|[H|h]sp|[D|d]naj"))
 fit.cont1symbiont_heat
 
-
 # Photosynthesis associated genes
-fit.cont2symbiont_photo <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[R|r]ibulose|[P|p]hoto|[F|f]ucox|[C|c]aroteno"))
-fit.cont2symbiont_photo
-
-fit.cont2symbiont_photo <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[R|r]ibulose|[R|r]bcL"))
+fit.cont2symbiont_photo <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[R|r]ibulose|[R|r]bcL|[P|p]hosphoglycolate phosphatase|[P|p]hosphoglycerate phosphatase| [P|p]hosphoglycerate kinase|[F|f]ructose-bisphosphate"))
 fit.cont2symbiont_photo
 
 # Heat map of Top significant genes
@@ -718,10 +712,10 @@ fit.cont1symbiont_TopSign <- topTable(fit.cont2_symbiont, number = 500)
 
 ####
 # Data feed for heat map, change as required..
-heatmap.data <- fit.cont1symbiont_heat
+heatmap.data.symbiont <- fit.cont2symbiont_photo
 #
 
-normalised_DE_gene_expression_symbiont <- gene_symbiont_v[gene_symbiont_v$genes$gene %in% heatmap.data$gene, ] %>% 
+normalised_DE_gene_expression_symbiont <- gene_symbiont_v[gene_symbiont_v$genes$gene %in% heatmap.data.symbiont$gene, ] %>% 
   as.data.frame() %>% 
   gather(SampleName, log2cpm, -gene, -Annotation) %>% 
   left_join(symbiont_samples) %>% 
@@ -737,18 +731,18 @@ clustering_symbiont <- normalised_DE_gene_expression_symbiont %>%
   cluster::agnes()
 #
 # Plot it
-expression_heatmap_symbiont <- normalised_DE_gene_expression_symbiont %>% 
+expression_heatmap_symbiont_photo <- normalised_DE_gene_expression_symbiont %>% 
   mutate(gene = factor(gene, levels = gene %>% unique %>% .[clustering_symbiont$order] )) %>% 
   ggplot(aes(x=SampleName, y = gene, fill = scaled_log2cpm)) +
   geom_tile() +
   scale_fill_gradient2(low = "#0073ff", high = "#ff8c00") +
   theme_bw() +
   #theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
-  theme(axis.ticks.y = element_blank(), axis.text.y = element_text(size=5)) + # With Text
   scale_x_discrete(labels = symbiont_samples$Strain %>% str_remove("Strain")) +
+  scale_y_discrete(labels = normalised_DE_gene_expression_symbiont %>% group_by(gene, Annotation) %>% summarise() %>% arrange(clustering_symbiont$order) %>% .$Annotation)
   xlab("Sample Strain")
 #
-expression_heatmap_symbiont
+expression_heatmap_symbiont_photo
 
 
 ```
@@ -1135,18 +1129,18 @@ dev.off()
 
 par(mfrow=c(1,2))
 
-Title <- paste(SampleGroup,"Heat-Map-Host")
+Title <- paste(SampleGroup,"Heat-Map-Symbiont_calvin")
 FileName <- paste(Title,time,".jpg")
-jpeg(file=FileName, width = 1020, height = 1020, res = 200)
+jpeg(file=FileName, width = 2520, height = 520, res = 200)
 par(mfrow=c(1,2))
-expression_heatmap_symbiont
+expression_heatmap_symbiont_photo
 dev.off() 
 
-Title <- paste(SampleGroup,"Heat-Map-Host")
+Title <- paste(SampleGroup,"Heat-Map-Host_Topsign500")
 FileName <- paste(Title,time,".jpg")
-jpeg(file=FileName, width = 1020, height = 1020, res = 200)
+jpeg(file=FileName, width =1520, height = 1020, res = 200)
 par(mfrow=c(1,2))
-expression_heatmap_host
+expression_heatmap_host_Topsign
 dev.off() 
 
 ```
