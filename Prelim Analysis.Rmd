@@ -1,11 +1,21 @@
 ---
-title: "Preliminary Analysis"
+title: "R Notebook - Directed evolution of algal endosymbionts can enhance coral thermal
+  tolerance"
 output:
   html_document:
     df_print: paged
     toc: true
     toc_depth: 2
 ---
+
+<br>
+
+***
+### Code for gene expression analysis
+***
+
+<br>
+
 
 ```{r setup, warning=FALSE, message=FALSE, error=FALSE}
 #
@@ -295,27 +305,41 @@ Filter genes according to annotation. Which are heat stress related genes that a
 fit.cont1host_heat <- topTable(fit.cont1_host, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[H|h]eat|[S|s]uperoxide|[G|g]lutathione|[C|c]haperone|[P|p]eroxidase|[H|h]sp"))
 fit.cont1host_heat
 
-
-# Photosynthesis associated genes
-fit.cont2host_apop <- topTable(fit.cont1_host, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[A|a]pop|[U|u]biquitin|[R|r]epair"))
-fit.cont2host_apop
-
-
-# Glyoxylate cycle associated genes
-fit.cont2host_glyoxy <- topTable(fit.cont1_host, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[A|a]cetyl|[G|g]lyoxylate|[M|m]alate|[A|a]conitase|[I|i]socitrate"))
-fit.cont2host_glyoxy
-
-
-
 # Heat map of Top significant genes
 fit.cont1host_TopSign <- topTable(fit.cont1_host, number = 500)
+
+
+
+# Heat map of Top significant unique genes
+SS8_unique_up_host <- filter(genes_sign_WT10_Intercept_host, SS3.vs.WT10 == 0 | SS3.vs.WT10 == -1, SS5.vs.WT10 == 0 | SS5.vs.WT10 == -1, SS8.vs.WT10 == 1) %>% .[order(.$Annotation),]
+fit.cont2_host_SS8unique_up <- topTable(fit.cont2_host, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_up_host$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS8_unique_up_host_TopSign <- head(fit.cont2_host_SS8unique_up, 15)
+#
+SS8_unique_down_host <- filter(genes_sign_WT10_Intercept_host, SS3.vs.WT10 == 0 | SS3.vs.WT10 == 1, SS5.vs.WT10 == 0 | SS5.vs.WT10 == 1, SS8.vs.WT10 == -1) %>% .[order(.$Annotation),]
+fit.cont2_host_SS8unique_down <- topTable(fit.cont2_host, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_down_host$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS8_unique_down_host_TopSign <- head(fit.cont2_host_SS8unique_down, 15)
+#
+fit.cont2_host_SS8unique_TopSign <- rbind(SS8_unique_up_host_TopSign, SS8_unique_down_host_TopSign)
+
+
+# Heat map of Top significant common genes
+SS3_5_8_common_up_host <- filter(genes_sign_WT10_Intercept_host, SS3.vs.WT10 == 1, SS8.vs.WT10 == 1, SS8.vs.WT10 == 1) %>% .[order(.$Annotation),]
+fit.cont2_host_SS358common_up <- topTable(fit.cont2_host, number = Inf, p.value = 0.05) %>% filter(gene %in% SS3_5_8_common_up_host$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS358_common_up_host_TopSign <- head(fit.cont2_host_SS358common_up, 25)
+#
+SS3_5_8_common_down_host <- filter(genes_sign_WT10_Intercept_host, SS3.vs.WT10 == -1, SS8.vs.WT10 == -1, SS8.vs.WT10 == -1) %>% .[order(.$Annotation),]
+fit.cont2_host_SS358common_down <- topTable(fit.cont2_host, number = Inf, p.value = 0.05) %>% filter(gene %in% SS3_5_8_common_down_host$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS358_common_down_host_TopSign <- head(fit.cont2_host_SS358common_down, 25)
+#
+fit.cont2_host_SS358common_TopSign <- rbind(SS358_common_down_host_TopSign, SS358_common_up_host_TopSign)
+
 
 
 
 
 ####
 # Data feed for heat map, change as required..
-heatmap.data.host <- fit.cont1host_TopSign
+heatmap.data.host <- fit.cont1host_heat
 #
 
 normalised_DE_gene_expression_host <- gene_host_v[gene_host_v$genes$gene %in% heatmap.data.host$gene, ] %>% 
@@ -333,7 +357,7 @@ clustering_host <- normalised_DE_gene_expression_host %>%
   dplyr::select(-gene) %>% 
   cluster::agnes()
 #
-# Plot it
+# Plot it (remove "#" theme to remove x axis labels)
 expression_heatmap_host_Topsign <- normalised_DE_gene_expression_host %>% 
   mutate(gene = factor(gene, levels = gene %>% unique %>% .[clustering_host$order] )) %>% 
   ggplot(aes(x=SampleName, y = gene, fill = scaled_log2cpm)) +
@@ -345,6 +369,7 @@ expression_heatmap_host_Topsign <- normalised_DE_gene_expression_host %>%
   scale_y_discrete(labels = normalised_DE_gene_expression_host %>% group_by(gene, Annotation) %>% summarise() %>% arrange(clustering_host$order) %>% .$Annotation)
   xlab("Sample Strain")
 #
+## Show heat map
 expression_heatmap_host_Topsign
 
 
@@ -373,7 +398,6 @@ plot_host_gene <- function(gene) {
 # gene of choice
 par(mar=c(5,6,3,1))
 layout(matrix(c(1,2), 2, 2, byrow = TRUE))
-
 #plot_host_gene("aten_0.1.m1.446.m1")
 #plot_host_gene("aten_0.1.m1.4452.m1")
 plot_host_gene("aten_0.1.m1.24908.m1")
@@ -437,8 +461,28 @@ write.xlsx(list_of_datasets_host, file=FileName, sep="\t", row.names=TRUE)
 # General adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
 host_WT10_intercept_VS_all <- topTable(fit.cont2_host, n=Inf) %>% write.table(, file="host_WT10_intercept_VS_all_topTable.csv", sep="\t", quote=F)
 ##
-# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
+# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN GOSeq and REVIGO
 write.xlsx(genes_sign_WT10_Intercept_host, file="host_SS8_unique_DGE_expression_list_WT10.xlsx", sheetName="SS_8_vs_WT10_unique", append=TRUE, row.names=FALSE)
+##
+# 
+
+
+# Export Toptable unique genes
+fit.cont2_host_SS8unique_TopSign <- rbind(fit.cont2_host_SS8unique_up, fit.cont2_host_SS8unique_down)
+library(openxlsx)
+SampleGroup<-"fit.cont1_host_SS8unique_TopSign"
+Title <- paste(SampleGroup,"SS8")
+FileName <- paste(Title,".xlsx")
+write.xlsx(fit.cont2_host_SS8unique_TopSign, file=FileName, sep="\t", row.names=TRUE)
+
+# Export Toptable common genes
+fit.cont2_host_SS358common_TopSign <- rbind(fit.cont2_host_SS358common_up, fit.cont2_host_SS358common_down)
+library(openxlsx)
+SampleGroup<-"fit.cont2_host_SS358common_TopSign"
+Title <- paste(SampleGroup,"SS8")
+FileName <- paste(Title,".xlsx")
+write.xlsx(fit.cont2_host_SS358common_TopSign, file=FileName, sep="\t", row.names=TRUE)
+
 
 ```
  
@@ -494,6 +538,7 @@ table((gene_symbiont_DGE$genes == (symbiont_annotations)))
 gene_symbiont_filt <- filterByExpr(gene_symbiont_DGE, design = model.matrix(~0 + Strain, data = gene_symbiont_DGE$samples), min.count = 40)
 
 gene_symbiont_filtered1 <- gene_symbiont_DGE[gene_symbiont_filt, keep.lib.sizes = F]
+
 
 gene_symbiont_filtered2 <- calcNormFactors(gene_symbiont_filtered1)
 
@@ -702,19 +747,42 @@ Filter genes according to annotation. Which are heat stress related genes that a
 fit.cont1symbiont_heat <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[H|h]eat|[S|s]uperoxide|[G|g]lutathione|[C|c]haperone|[P|p]eroxidase|[H|h]sp|[D|d]naj"))
 fit.cont1symbiont_heat
 
-# Photosynthesis associated genes
-fit.cont2symbiont_photo <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[R|r]ibulose|[R|r]bcL|[P|p]hosphoglycolate phosphatase|[P|p]hosphoglycerate phosphatase| [P|p]hosphoglycerate kinase|[F|f]ructose-bisphosphate"))
-fit.cont2symbiont_photo
+# Calvin-Cycle associated genes
+fit.cont2symbiont_calvin <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(Annotation %>% str_detect("[R|r]ibulose|[R|r]bcL|[P|p]hosphoglycolate phosphatase|[P|p]hosphoglycerate phosphatase| [P|p]hosphoglycerate kinase|[F|f]ructose-bisphosphate"))
+fit.cont2symbiont_calvin
 
 # Heat map of Top significant genes
-fit.cont1symbiont_TopSign <- topTable(fit.cont2_symbiont, number = 500)
+fit.cont1symbiont_TopSign <- topTable(fit.cont2_symbiont, number = 50)
+fit.cont1symbiont_TopSign
+
+# Heat map of Top significant unique genes
+SS8_unique_up_symbiont <- filter(genes_sign_WT10_Intercept_symbiont, SS3.vs.WT10 == 0 | SS3.vs.WT10 == -1, SS5.vs.WT10 == 0 | SS5.vs.WT10 == -1, SS8.vs.WT10 == 1) %>% .[order(.$Annotation),]
+fit.cont2_symbiont_SS8unique_up <- topTable(fit.cont2_symbiont, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_up_symbiont$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS8_unique_up_symbiont_TopSign <- head(fit.cont2_symbiont_SS8unique_up, 15)
+#
+SS8_unique_down_symbiont <- filter(genes_sign_WT10_Intercept_symbiont, SS3.vs.WT10 == 0 | SS3.vs.WT10 == 1, SS5.vs.WT10 == 0 | SS5.vs.WT10 == 1, SS8.vs.WT10 == -1) %>% .[order(.$Annotation),]
+fit.cont2_symbiont_SS8unique_down <- topTable(fit.cont2_symbiont, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_down_symbiont$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS8_unique_down_symbiont_TopSign <- head(fit.cont2_symbiont_SS8unique_down, 15)
+#
+fit.cont2_symbiont_SS8unique_TopSign <- rbind(SS8_unique_up_symbiont_TopSign, SS8_unique_down_symbiont_TopSign)
+
+# Heat map of Top significant common genes
+SS3_5_8_common_up_symbiont <- filter(genes_sign_WT10_Intercept_symbiont, SS3.vs.WT10 == 1, SS8.vs.WT10 == 1, SS8.vs.WT10 == 1) %>% .[order(.$Annotation),]
+fit.cont2_symbiont_SS358common_up <- topTable(fit.cont2_symbiont, number = Inf, p.value = 0.05) %>% filter(gene %in% SS3_5_8_common_up_symbiont$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS358_common_up_symbiont_TopSign <- head(fit.cont2_symbiont_SS358common_up, 25)
+#
+SS3_5_8_common_down_symbiont <- filter(genes_sign_WT10_Intercept_symbiont, SS3.vs.WT10 == -1, SS8.vs.WT10 == -1, SS8.vs.WT10 == -1) %>% .[order(.$Annotation),]
+fit.cont2_symbiont_SS358common_down <- topTable(fit.cont2_symbiont, number = Inf, p.value = 0.05) %>% filter(gene %in% SS3_5_8_common_down_symbiont$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS358_common_down_symbiont_TopSign <- head(fit.cont2_symbiont_SS358common_down, 25)
+#
+fit.cont2_symbiont_SS358common_TopSign <- rbind(SS358_common_down_symbiont_TopSign, SS358_common_up_symbiont_TopSign)
 
 
 ####
 # Data feed for heat map, change as required..
-heatmap.data.symbiont <- fit.cont2symbiont_photo
-#
+heatmap.data.symbiont <- fit.cont2symbiont_calvin
 
+#
 normalised_DE_gene_expression_symbiont <- gene_symbiont_v[gene_symbiont_v$genes$gene %in% heatmap.data.symbiont$gene, ] %>% 
   as.data.frame() %>% 
   gather(SampleName, log2cpm, -gene, -Annotation) %>% 
@@ -731,18 +799,20 @@ clustering_symbiont <- normalised_DE_gene_expression_symbiont %>%
   cluster::agnes()
 #
 # Plot it
-expression_heatmap_symbiont_photo <- normalised_DE_gene_expression_symbiont %>% 
+expression_heatmap_symbiont <- normalised_DE_gene_expression_symbiont %>% 
   mutate(gene = factor(gene, levels = gene %>% unique %>% .[clustering_symbiont$order] )) %>% 
   ggplot(aes(x=SampleName, y = gene, fill = scaled_log2cpm)) +
   geom_tile() +
   scale_fill_gradient2(low = "#0073ff", high = "#ff8c00") +
   theme_bw() +
-  #theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
   scale_x_discrete(labels = symbiont_samples$Strain %>% str_remove("Strain")) +
   scale_y_discrete(labels = normalised_DE_gene_expression_symbiont %>% group_by(gene, Annotation) %>% summarise() %>% arrange(clustering_symbiont$order) %>% .$Annotation)
   xlab("Sample Strain")
 #
-expression_heatmap_symbiont_photo
+#
+# Show heat map
+expression_heatmap_symbiont
 
 
 ```
@@ -767,7 +837,7 @@ plot_symbiont_gene <- function(gene) {
 
 # gene of choice
 par(mar=c(5,6,3,1))
-layout(matrix(c(1,2), 2, 2, byrow = TRUE))
+#layout(matrix(c(1,2), 2, 2, byrow = TRUE))
 
 plot_symbiont_gene("SymbC1.scaffold7634.1.m1")  # Superoxide dismutase, SS8 UNIQUE
 #plot_symbiont_gene("SymbC1.scaffold10965.1.m1") # family chaperone, SS8 UNIQUE
@@ -778,11 +848,15 @@ plot_symbiont_gene("SymbC1.scaffold7634.1.m1")  # Superoxide dismutase, SS8 UNIQ
 #plot_symbiont_gene("SymbC1.scaffold2650.2.m1")  #	E3 ubiquitin- ligase HERC1
 #plot_symbiont_gene("SymbC1.scaffold12561.1.m1") #	Cytochrome mitochondrial
 plot_symbiont_gene("SymbC1.scaffold9320.1.m1")  # Heat shock 70 kDa 
+
 plot_symbiont_gene("SymbC1.scaffold6940.1.m1")  # ribulose 1,5-bisphosphate carboxylase oxygenase form
 plot_symbiont_gene("SymbC1.scaffold6940.2.m1")  # ribulose 1,5-bisphosphate carboxylase oxygenase form
 plot_symbiont_gene("SymbC1.scaffold9010.1.m1")  # ribulose bisphosphate chloroplastic
 plot_symbiont_gene("SymbC1.scaffold23876.1.m1") # ribulose bisphosphate carboxylase	
 
+#plot_symbiont_gene("SymbC1.scaffold1364.11")   # High affinity nitrate transporter
+#plot_symbiont_gene("SymbC1.scaffold912.8.m1")  # phosphoglycolate phosphatase
+#plot_symbiont_gene("SymbC1.scaffold9459.1")  # bifunctional aconitate hydratase 2 2-methylisocitrate dehydratase
 
 ## Plot by exon, according to annotation
 plot_symbiont_gene_by_exon <- function(gene) {
@@ -810,7 +884,6 @@ plot_symbiont_gene_by_exon("SymbC1.scaffold7634.1.m1")    # Superoxide dismutase
 #plot_symbiont_gene_by_exon("SymbC1.scaffold2883.4.m1")    # Lactoylglutathione lyase
 #plot_symbiont_gene_by_exon("SymbC1.scaffold714.1.m1")     # Chaperone chloroplastic
 plot_symbiont_gene_by_exon("SymbC1.scaffold1787.3.m1")    # hsp organising protein
-plot_symbiont_gene_by_exon("SymbC1.scaffold2730.1.m1")  
 
 
 
@@ -828,7 +901,7 @@ code silenced
 # Specific pairwise comparisons. What separates WT10 from respective strains?
 library(openxlsx)
 SampleGroup<-"symbiont_WT10_intercept_VS_pairwise"
-Title <- paste(SampleGroup,"DGE-Table")
+Title <- paste(SampleGroup,"DGE-Table_NEW")
 FileName <- paste(Title,".xlsx")
 limma.resA <- topTable(fit.cont2_symbiont,coef="SS8.vs.WT10",sort.by="p",n="Inf")
 limma.resB <- topTable(fit.cont2_symbiont,coef="SS3.vs.WT10",sort.by="p",n="Inf")
@@ -837,17 +910,32 @@ list_of_datasets_symbiont <- list("SS8.vs.WT10" = limma.resA, "SS3.vs.WT10" = li
 write.xlsx(list_of_datasets_symbiont, file=FileName, sep="\t", row.names=TRUE)
 #
 # Gerneral adaptations of respective strains. Take this table for GO analysis with MWU/Fisher script. 
-symbiont_WT10_intercept_VS_all <- topTable(fit.cont2_symbiont, n=Inf) %>% write.table(, file="symbiont_WT10_intercept_VS_all_topTable.csv", sep="\t", quote=F)
+symbiont_WT10_intercept_VS_all <- topTable(fit.cont2_symbiont, n=Inf) %>% write.table(, file="symbiont_WT10_intercept_VS_all_topTable_NEW.csv", sep="\t", quote=F)
 ##
 
-# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN REVIGO
-write.xlsx(genes_sign_WT10_Intercept_symbiont, file="symbiont_unique_DGE_expression_list.xlsx", sheetName="SS8_vs_WT10_unique", append=TRUE, row.names=FALSE)
+# USE THESE FOR INDIVIDUAL GENE COMPARISONS IN GOSeq and REVIGO
+write.xlsx(genes_sign_WT10_Intercept_symbiont, file="symbiont_unique_DGE_expression_list_NEW.xlsx", sheetName="SS8_vs_WT10_unique", append=TRUE, row.names=FALSE)
 #
 
-```
- 
-<br>
 
+# Export Toptable unique genes
+fit.cont2_symbiont_SS8unique_TopSign <- rbind(fit.cont2_symbiont_SS8unique_up, fit.cont2_symbiont_SS8unique_down)
+library(openxlsx)
+SampleGroup<-"fit.cont1_symbiont_SS8unique_TopSign"
+Title <- paste(SampleGroup,"SS8")
+FileName <- paste(Title,".xlsx")
+write.xlsx(fit.cont2_symbiont_SS8unique_TopSign, file=FileName, sep="\t", row.names=TRUE)
+
+# Export Toptable common genes
+fit.cont2_symbiont_SS358common_TopSign <- rbind(fit.cont2_symbiont_SS358common_up, fit.cont2_symbiont_SS358common_down)
+library(openxlsx)
+SampleGroup<-"fit.cont2_symbiont_SS358common_TopSign"
+Title <- paste(SampleGroup,"SS8")
+FileName <- paste(Title,".xlsx")
+write.xlsx(fit.cont2_symbiont_SS358common_TopSign, file=FileName, sep="\t", row.names=TRUE)
+
+
+```
 
 ***
 <br><br>
@@ -855,8 +943,8 @@ write.xlsx(genes_sign_WT10_Intercept_symbiont, file="symbiont_unique_DGE_express
 
 
 # __3 Additional Code__
-## MDS Statistics with Adonis - Host
-```{r, fig.align='center'}
+## MDS, statistics with adonis - Host
+```{r, fig.align='center', warning = FALSE, message = FALSE}
 library(limma)
 library(edgeR)
 library(Glimma)
@@ -955,7 +1043,8 @@ dev.off()
 ##
 Title <- paste(SampleGroup,"Adonis")
 FileName <- paste("5-",Title,time,".txt")
-ad_host=adonis(t(logcounts_host)~CellType+Strain, permutations = 999, data=conditions,method="euclidean")
+
+ad_host=adonis(t(logcounts_host)~CellType+Strain, permutations = 999, data=conditions, method="euclidean")
 ad_host 
 #
 #capture.output(ad_host,file=FileName)
@@ -971,14 +1060,14 @@ TukeyHSD(aov(pco1~Strain))
 
 ```
 
-
 <br><br>
 
 
 
 
-## MDS Statistics with Adonis - Symbiont
+## MDS, statistics with adonis - Symbiont
 ```{r, fig.align='center'}
+
 library(limma)
 library(edgeR)
 library(Glimma)
@@ -1093,13 +1182,12 @@ TukeyHSD(aov(pco1~Strain))
 #capture.output(TukeyHSD(aov(pco1~Strain)),file=FileName)
 
 ```
-
+<br><br>
 
 
 ## Export graphics
-MDS plot and heatmap export
 ```{r, eval=FALSE}
-#Export graphics
+# MDS plot and heatmap export
 
 SampleGroup <-"31C"
 Title <- paste(SampleGroup,"MDS-logcounts-euclidean_2")
@@ -1129,25 +1217,215 @@ dev.off()
 
 par(mfrow=c(1,2))
 
-Title <- paste(SampleGroup,"Heat-Map-Symbiont_calvin")
+SampleGroup <-"DGE"
+time<-format(Sys.time(),"%d-%m-%Y")
+Title <- paste(SampleGroup,"Heat-Map-Symbiont_Photo")
 FileName <- paste(Title,time,".jpg")
-jpeg(file=FileName, width = 2520, height = 520, res = 200)
+jpeg(file=FileName, width = 4000, height = 5500, res = 550)
 par(mfrow=c(1,2))
-expression_heatmap_symbiont_photo
+expression_heatmap_symbiont
 dev.off() 
 
-Title <- paste(SampleGroup,"Heat-Map-Host_Topsign500")
+SampleGroup <-"DGE"
+time<-format(Sys.time(),"%d-%m-%Y")
+Title <- paste(SampleGroup,"Heat-Map-Host_Heat")
 FileName <- paste(Title,time,".jpg")
-jpeg(file=FileName, width =1520, height = 1020, res = 200)
+jpeg(file=FileName, width =3920, height = 4020, res = 600)
 par(mfrow=c(1,2))
-expression_heatmap_host_Topsign
+expression_heatmap_host_heat
 dev.off() 
+
+```
+<br><br>
+
+
+
+# __4 GOSeq gene ontology analysis__
+```{r, message=FALSE, warning=FALSE, eval=FALSE}
+#### Install packages
+if (!requireNamespace("BiocManager", quietly = TRUE))
+# install.packages("BiocManager")
+# BiocManager::install("goseq", version = "3.8")
+# BiocManager::install("GO.db", version = "3.8")
+# BiocManager::install("qvalue", version = "3.8")
+# BiocManager::install("geneLenDataBase", version = "3.8")
+# BiocManager::install("geneLenDataBase", version = "3.8")
+# BiocManager::install("Rsamtools", version = "3.8")
+
+library(Rsamtools)
+library(geneLenDataBase)
+library(goseq)
+library(GO.db)
+library(qvalue)
+library(treemap) 
+
+```
+
+***
+<br><br>
+
+## Source script
+```{r, eval=FALSE}
+# https://github.com/trinityrnaseq/trinity_ext_sample_data/blob/master/test_GOSeq_trinotate_pipe/Spombe/__runGOseq.R
 
 ```
 
 
+## GOSeq: Coral Host 
+```{r, eval=FALSE}
+# capture list of genes for functional enrichment testing
+####
+factor_labeling = read.table("HOST/1Custom.list.HOST.txt", row.names=2, header=F)
+colnames(factor_labeling) = c('type')
+factor_list = unique(factor_labeling[,1])
+DE_genes = rownames(factor_labeling)
+#
+# get gene lengths
+gene_lengths = read.table("../OwnFiles/HOST/3HOST_GENE.length.txt", header=T, row.names=1)
+gene_lengths = as.matrix(gene_lengths[,1,drop=F])
+#
+# get background gene list
+background = read.table("../OwnFiles/HOST/2HOST_background_SS8_WT10", header=T, row.names=1)
+background.gene_ids = rownames(background)
+background.gene_ids = unique(c(background.gene_ids, DE_genes))
+#
+# parse GO assignments
+GO_info = read.table("../OwnFiles/HOST/4HOST_blast2go_annot_20190211_1343.txt", header=F, row.names=1,stringsAsFactors=F)
+#
+#
+GO_info_listed = apply(GO_info, 1, function(x) unlist(strsplit(x,',')))
+names(GO_info_listed) = rownames(GO_info)
+get_GO_term_descr =  function(x) {
+    d = 'none';
+    go_info = GOTERM[[x]];
+    if (length(go_info) >0) { d = paste(Ontology(go_info), Term(go_info), sep=' ');}
+    return(d);
+}
+#
+# GO-Seq protocol: build pwf based on ALL DE features
+sample_set_gene_ids = background.gene_ids
+sample_set_gene_lengths = gene_lengths[sample_set_gene_ids,]
+GO_info_listed = GO_info_listed[ names(GO_info_listed) %in% sample_set_gene_ids ]
+cat_genes_vec = as.integer(sample_set_gene_ids %in% rownames(factor_labeling))
+pwf=nullp(cat_genes_vec, bias.data=sample_set_gene_lengths)
+rownames(pwf) = sample_set_gene_ids
+#
+# perform functional enrichment testing for each category.
+for (feature_cat in factor_list) {
+   message('Processing category: ', feature_cat)
+    cat_genes_vec = as.integer(sample_set_gene_ids %in% rownames(factor_labeling)[factor_labeling$type == feature_cat])
+    pwf$DEgenes = cat_genes_vec
+    res = goseq(pwf,gene2cat=GO_info_listed, use_genes_without_cat=TRUE)
+    ## over-represented categories:
+     pvals = res$over_represented_pvalue
+     pvals[pvals > 1 - 1e-10] = 1 - 1e-10
+     q = qvalue(pvals)
+     res$over_represented_FDR = q$qvalues
+    go_enrich_filename = paste(feature_cat,'HOST.GOseq.enriched', sep='')
+    result_table = res[res$over_represented_pvalue<=0.05,]
+    descr = unlist(lapply(result_table$category, get_GO_term_descr))
+    result_table$go_term = descr;
+    write.table(result_table[order(result_table$over_represented_pvalue),], file=go_enrich_filename, sep='	', quote=F, row.names=F)
+    ## under-represented categories:
+     pvals = res$under_represented_pvalue
+     pvals[pvals>1-1e-10] = 1 - 1e-10
+     q = qvalue(pvals)
+     res$under_represented_FDR = q$qvalues
+    go_depleted_filename = paste(feature_cat,'HOST.GOseq.depleted', sep='')
+    result_table = res[res$under_represented_pvalue<=0.05,]
+    descr = unlist(lapply(result_table$category, get_GO_term_descr))
+    result_table$go_term = descr;
+    #
+    write.table(result_table[order(result_table$under_represented_pvalue),], file=go_depleted_filename, sep='	', quote=F, row.names=F)
+    #
+    }
 
-Heat map - Go categories
+enriched.GO=res$category[p.adjust(res$over_represented_pvalue,method="BH")<.05]
+head(enriched.GO)
+
+
+```
+<br>
+
+
+
+## GOSeq: Algal Symbiont
+```{r, eval=FALSE}
+# capture list of genes for functional enrichment testing
+####
+factor_labeling = read.table("../OwnFiles/SYMBIONT/1Custom.list.SYMBIONT.txt", row.names=2, header=F)
+colnames(factor_labeling) = c('type')
+factor_list = unique(factor_labeling[,1])
+DE_genes = rownames(factor_labeling)
+#
+# get gene lengths
+gene_lengths = read.table("../OwnFiles/SYMBIONT/3Symbiont-GeneLenght.txt", header=T, row.names=1)
+gene_lengths = as.matrix(gene_lengths[,1,drop=F])
+#
+# get background gene list
+background = read.table("../OwnFiles/SYMBIONT/2Symbiont_background_SS8_VS_WT10", header=T, row.names=1)
+background.gene_ids = rownames(background)
+background.gene_ids = unique(c(background.gene_ids, DE_genes))
+#
+# parse GO assignments
+GO_info = read.table("../OwnFiles/SYMBIONT/4SYMBIONT_blast2go_annot_20190211_1353.annot", header=F, row.names=1,stringsAsFactors=F)
+#
+GO_info_listed = apply(GO_info, 1, function(x) unlist(strsplit(x,',')))
+names(GO_info_listed) = rownames(GO_info)
+get_GO_term_descr =  function(x) {
+    d = 'none';
+    go_info = GOTERM[[x]];
+    if (length(go_info) >0) { d = paste(Ontology(go_info), Term(go_info), sep=' ');}
+    return(d);
+}
+#
+# GO-Seq protocol: build pwf based on ALL DE features
+sample_set_gene_ids = background.gene_ids
+sample_set_gene_lengths = gene_lengths[sample_set_gene_ids,]
+GO_info_listed = GO_info_listed[ names(GO_info_listed) %in% sample_set_gene_ids ]
+cat_genes_vec = as.integer(sample_set_gene_ids %in% rownames(factor_labeling))
+pwf=nullp(cat_genes_vec, bias.data=sample_set_gene_lengths)
+rownames(pwf) = sample_set_gene_ids
+#
+# perform functional enrichment testing for each category.
+for (feature_cat in factor_list) {
+   message('Processing category: ', feature_cat)
+    cat_genes_vec = as.integer(sample_set_gene_ids %in% rownames(factor_labeling)[factor_labeling$type == feature_cat])
+    pwf$DEgenes = cat_genes_vec
+    res = goseq(pwf,gene2cat=GO_info_listed, use_genes_without_cat=TRUE)
+    ## over-represented categories:
+     pvals = res$over_represented_pvalue
+     pvals[pvals > 1 - 1e-10] = 1 - 1e-10
+     q = qvalue(pvals)
+     res$over_represented_FDR = q$qvalues
+    go_enrich_filename = paste(feature_cat,'.GOseq.enriched', sep='')
+    result_table = res[res$over_represented_pvalue<=0.05,]
+    descr = unlist(lapply(result_table$category, get_GO_term_descr))
+    result_table$go_term = descr;
+    write.table(result_table[order(result_table$over_represented_pvalue),], file=go_enrich_filename, sep='	', quote=F, row.names=F)
+    ## under-represented categories:
+     pvals = res$under_represented_pvalue
+     pvals[pvals > 1-1e-10] = 1 - 1e-10
+     q = qvalue(pvals)
+     res$under_represented_FDR = q$qvalues
+    go_depleted_filename = paste(feature_cat,'.GOseq.depleted', sep='')
+    result_table = res[res$under_represented_pvalue<=0.05,]
+    descr = unlist(lapply(result_table$category, get_GO_term_descr))
+    result_table$go_term = descr;
+    #
+    write.table(result_table[order(result_table$under_represented_pvalue),], file=go_depleted_filename, sep='	', quote=F, row.names=F)
+    #
+}
+
+enriched.GO=res$category[p.adjust(res$over_represented_pvalue,method="BH")<0.05]
+head(enriched.GO)
+
+```
+<br><br>
+
+
+
+## Heat map - GO categories
 ```{r, eval=FALSE}
 
 library(limma)
@@ -1165,7 +1443,7 @@ library(openxlsx)
 library(ggplot2)
 
 
-highly_variable_lcpm_NEW <- read.delim("data/GO_Cats_heatmap.txt", row.names=1)
+highly_variable_lcpm_NEW <- read.delim("data/GO_Cats_heatmap2.txt", row.names=1)
 highly_variable_lcpm_NEWNEW <- as.matrix(highly_variable_lcpm_NEW, mode='any')
 
 #
@@ -1176,11 +1454,11 @@ FileName <- paste(Title,time,".jpg")
 jpeg(file=FileName, width = 2500, height = 3000, res = 220)
 par(mfrow = c(1,1))
 #
-
 #
 #mypalette <- brewer.pal(5, "RdGyBu")
 #morecols <- colorRampPalette(mypalette)
-color.palette  <- c(colorRampPalette(c("blue", "lightgrey", "red"))(n=20))
+color.palette  <- c(colorRampPalette(c("blue", "white", "red"))(n=10))
+#color.palette <- (wes_palette(21, name = "Zissou1", type = "continuous")))
 col.cell <- c("purple", "orange")[symbiont_samples$CellType]
 colsep = "White"
 rowsep = "White"
@@ -1193,8 +1471,8 @@ column_labels <- paste(colnames(highly_variable_lcpm_NEW)) #$CellType, symbiont_
 #
 heatmap.2(
   highly_variable_lcpm_NEWNEW,
-  #Rowv = FALSE,
-  #Colv = FALSE,
+  Rowv = FALSE,
+  Colv = FALSE,
   #col = rev(morecols(9)),
   #col=bluered(256),
   col = color.palette,
@@ -1203,7 +1481,7 @@ heatmap.2(
   na.color = "White",
   na.rm=TRUE,
   trace = "none",
-  cellnote=as.matrix(PVal), notecex=1.6,
+  #cellnote=as.matrix(PVal), notecex=1.6,
   notecol="black",
   main = "GO Categories",
   density.info=c("none"), #,"density","none"),
@@ -1221,10 +1499,10 @@ heatmap.2(
   #colsep,
   symm=F,symkey=F,symbreaks=T,
   #breaks=seq(-4, 4),
-  cexRow=1.6,cexCol=1.7, 
+  cexRow=1.6,cexCol=1.2, 
   #rowsep,
-  rowsep=c(1, 2, 3, 4),
-  colsep=c(1, 2, 3),
+  #rowsep=c(1, 2, 3, 4),
+  colsep=c(1, 2, 3, 4, 5, 6),
   sepcolor="White"
   #sepwidth=c(0.05,0.05)
   #sepwidth=c(0.05,0.05)
@@ -1239,8 +1517,8 @@ dev.off()
 
 
 
-highly_variable_lcpm_NEW_HOST <- read.delim("data/GO_Cats_heatmap_host.txt", row.names=1)
-highly_variable_lcpm_NEWNEW_HOST <- as.matrix(highly_variable_lcpm_NEW_HOST, mode='any')
+highly_variable_lcpm_HOST <- read.delim("data/GO_Cats_heatmap_host.txt", row.names=1)
+highly_variable_lcpm_HOST2 <- as.matrix(highly_variable_lcpm_HOST, mode='any')
 
 #
 time<-format(Sys.time(),"%d-%m-%Y")
@@ -1259,12 +1537,12 @@ rowsep = "White"
 br <- seq(-7, 3, by = 0.25) 
 #PVal <- read.delim("data/GO_Cats_heatmap-values.txt", row.names=1)
 PVal <- read.delim("data/GO_Cats_heatmap-values-host.txt", row.names=1)
-column_labels <- paste(colnames(highly_variable_lcpm_NEW_HOST)) #$CellType, symbiont_samples$Strain, sep = ".")
+column_labels <- paste(colnames(highly_variable_lcpm_HOST)) #$CellType, symbiont_samples$Strain, sep = ".")
 #col_breaks = c(seq(0.001,0.2,length=100), seq(0.3,0.4,length=100), seq(0.5,0.6,length=100))
 #column_labels <- paste(sampleinfo$SampleName)
 #
 heatmap.2(
-  highly_variable_lcpm_NEWNEW_HOST,
+  highly_variable_lcpm_HOST2,
   #Rowv = FALSE,
   #Colv = FALSE,
   #col = rev(morecols(9)),
@@ -1373,4 +1651,22 @@ heatmap.2(
 title(Title, line = +3.3)
 dev.off() 
 ```
+<br><br>
+
+
+## Ranked based GO analysis with adaptive clustering (MWU test) 
+```{r}
+# Source:
+# https://github.com/z0on/GO_MWU
+```
+
+
+<br><br>
+
+
+
+
+
+
+
 
