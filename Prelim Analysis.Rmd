@@ -312,14 +312,14 @@ fit.cont1host_TopSign <- topTable(fit.cont1_host, number = 500)
 
 # Heat map of Top significant unique genes
 SS8_unique_up_host <- filter(genes_sign_WT10_Intercept_host, SS3.vs.WT10 == 0 | SS3.vs.WT10 == -1, SS5.vs.WT10 == 0 | SS5.vs.WT10 == -1, SS8.vs.WT10 == 1) %>% .[order(.$Annotation),]
-fit.cont2_host_SS8unique_up <- topTable(fit.cont2_host, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_up_host$gene) # %>% str_detect(SS_8_unique_up$gene))
-SS8_unique_up_host_TopSign <- head(fit.cont2_host_SS8unique_up, 15)
+fit.cont1_host_SS8unique_up <- topTable(fit.cont1_host, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_up_host$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS8_unique_up_host_TopSign <- head(fit.cont1_host_SS8unique_up, 15)
 #
 SS8_unique_down_host <- filter(genes_sign_WT10_Intercept_host, SS3.vs.WT10 == 0 | SS3.vs.WT10 == 1, SS5.vs.WT10 == 0 | SS5.vs.WT10 == 1, SS8.vs.WT10 == -1) %>% .[order(.$Annotation),]
-fit.cont2_host_SS8unique_down <- topTable(fit.cont2_host, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_down_host$gene) # %>% str_detect(SS_8_unique_up$gene))
-SS8_unique_down_host_TopSign <- head(fit.cont2_host_SS8unique_down, 15)
+fit.cont1_host_SS8unique_down <- topTable(fit.cont1_host, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_down_host$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS8_unique_down_host_TopSign <- head(fit.cont1_host_SS8unique_down, 15)
 #
-fit.cont2_host_SS8unique_TopSign <- rbind(SS8_unique_up_host_TopSign, SS8_unique_down_host_TopSign)
+fit.cont1_host_SS8unique_TopSign <- rbind(SS8_unique_up_host_TopSign, SS8_unique_down_host_TopSign)
 
 
 # Heat map of Top significant common genes
@@ -468,12 +468,12 @@ write.xlsx(genes_sign_WT10_Intercept_host, file="host_SS8_unique_DGE_expression_
 
 
 # Export Toptable unique genes
-fit.cont2_host_SS8unique_TopSign <- rbind(fit.cont2_host_SS8unique_up, fit.cont2_host_SS8unique_down)
+fit.cont1_host_SS8unique_TopSign <- rbind(fit.cont1_host_SS8unique_up, fit.cont1_host_SS8unique_down)
 library(openxlsx)
 SampleGroup<-"fit.cont1_host_SS8unique_TopSign"
 Title <- paste(SampleGroup,"SS8")
 FileName <- paste(Title,".xlsx")
-write.xlsx(fit.cont2_host_SS8unique_TopSign, file=FileName, sep="\t", row.names=TRUE)
+write.xlsx(fit.cont1_host_SS8unique_TopSign, file=FileName, sep="\t", row.names=TRUE)
 
 # Export Toptable common genes
 fit.cont2_host_SS358common_TopSign <- rbind(fit.cont2_host_SS358common_up, fit.cont2_host_SS358common_down)
@@ -757,14 +757,14 @@ fit.cont1symbiont_TopSign
 
 # Heat map of Top significant unique genes
 SS8_unique_up_symbiont <- filter(genes_sign_WT10_Intercept_symbiont, SS3.vs.WT10 == 0 | SS3.vs.WT10 == -1, SS5.vs.WT10 == 0 | SS5.vs.WT10 == -1, SS8.vs.WT10 == 1) %>% .[order(.$Annotation),]
-fit.cont2_symbiont_SS8unique_up <- topTable(fit.cont2_symbiont, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_up_symbiont$gene) # %>% str_detect(SS_8_unique_up$gene))
-SS8_unique_up_symbiont_TopSign <- head(fit.cont2_symbiont_SS8unique_up, 15)
+fit.cont1_symbiont_SS8unique_up <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_up_symbiont$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS8_unique_up_symbiont_TopSign <- head(fit.cont1_symbiont_SS8unique_up, 15)
 #
 SS8_unique_down_symbiont <- filter(genes_sign_WT10_Intercept_symbiont, SS3.vs.WT10 == 0 | SS3.vs.WT10 == 1, SS5.vs.WT10 == 0 | SS5.vs.WT10 == 1, SS8.vs.WT10 == -1) %>% .[order(.$Annotation),]
-fit.cont2_symbiont_SS8unique_down <- topTable(fit.cont2_symbiont, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_down_symbiont$gene) # %>% str_detect(SS_8_unique_up$gene))
-SS8_unique_down_symbiont_TopSign <- head(fit.cont2_symbiont_SS8unique_down, 15)
+fit.cont1_symbiont_SS8unique_down <- topTable(fit.cont1_symbiont, number = Inf, p.value = 0.05) %>% filter(gene %in% SS8_unique_down_symbiont$gene) # %>% str_detect(SS_8_unique_up$gene))
+SS8_unique_down_symbiont_TopSign <- head(fit.cont1_symbiont_SS8unique_down, 15)
 #
-fit.cont2_symbiont_SS8unique_TopSign <- rbind(SS8_unique_up_symbiont_TopSign, SS8_unique_down_symbiont_TopSign)
+fit.cont1_symbiont_SS8unique_TopSign <- rbind(SS8_unique_up_symbiont_TopSign, SS8_unique_down_symbiont_TopSign)
 
 # Heat map of Top significant common genes
 SS3_5_8_common_up_symbiont <- filter(genes_sign_WT10_Intercept_symbiont, SS3.vs.WT10 == 1, SS8.vs.WT10 == 1, SS8.vs.WT10 == 1) %>% .[order(.$Annotation),]
@@ -847,6 +847,7 @@ plot_symbiont_gene("SymbC1.scaffold7634.1.m1")  # Superoxide dismutase, SS8 UNIQ
 #plot_symbiont_gene("SymbC1.scaffold1286.6.m1")  #	Glutathione synthetase
 #plot_symbiont_gene("SymbC1.scaffold2650.2.m1")  #	E3 ubiquitin- ligase HERC1
 #plot_symbiont_gene("SymbC1.scaffold12561.1.m1") #	Cytochrome mitochondrial
+
 plot_symbiont_gene("SymbC1.scaffold9320.1.m1")  # Heat shock 70 kDa 
 
 plot_symbiont_gene("SymbC1.scaffold6940.1.m1")  # ribulose 1,5-bisphosphate carboxylase oxygenase form
@@ -919,12 +920,12 @@ write.xlsx(genes_sign_WT10_Intercept_symbiont, file="symbiont_unique_DGE_express
 
 
 # Export Toptable unique genes
-fit.cont2_symbiont_SS8unique_TopSign <- rbind(fit.cont2_symbiont_SS8unique_up, fit.cont2_symbiont_SS8unique_down)
+fit.cont1_symbiont_SS8unique_TopSign <- rbind(fit.cont1_symbiont_SS8unique_up, fit.cont1_symbiont_SS8unique_down)
 library(openxlsx)
 SampleGroup<-"fit.cont1_symbiont_SS8unique_TopSign"
 Title <- paste(SampleGroup,"SS8")
 FileName <- paste(Title,".xlsx")
-write.xlsx(fit.cont2_symbiont_SS8unique_TopSign, file=FileName, sep="\t", row.names=TRUE)
+write.xlsx(fit.cont1_symbiont_SS8unique_TopSign, file=FileName, sep="\t", row.names=TRUE)
 
 # Export Toptable common genes
 fit.cont2_symbiont_SS358common_TopSign <- rbind(fit.cont2_symbiont_SS358common_up, fit.cont2_symbiont_SS358common_down)
